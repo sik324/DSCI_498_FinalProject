@@ -1,5 +1,21 @@
 ## Project Overview
 This project is part of CAT498 and focuses on applying artificial intelligence to catastrophe modeling. In catastrophe modeling, risk is usually analyzed through four major modules: hazard, exposure, vulnerability, and loss. For Milestone 1, this project only focuses on the hazard module. The case study used in this work is Hurricane Ian. The main objective of this milestone is to explore whether a Conditional Generative Adversarial Network (cGAN) can be used to learn and generate realistic hazard representations from hurricane-related input data. The long-term goal is to extend AI methods to the other catastrophe modeling modules in future milestones.
 
+## Data
 
+The project uses Hurricane Ian hazard-related data as the primary input for model development. The data includes geospatial and storm-related information used to represent the hazard intensity and spatial pattern of the event. This may include raster layers, track-based storm data, wind-related hazard information, and other processed inputs required for training the cGAN model.
+At this stage, the data is being used only for the hazard module, meaning the project is focused on generating or learning hazard patterns rather than estimating exposure, physical damage, or financial loss. The data is preprocessed so that it can be used as input to the AI model and compared with target hazard outputs.
 
+## Goals
+
+The goals of this Milestone 1 project are:
+
+1. Understand the role of the hazard module in catastrophe modeling.
+
+2. Prepare Hurricane Ian hazard-related data for AI-based modeling.
+
+3. Implement a Conditional GAN (cGAN) for hazard generation.
+
+4. Evaluate whether the generated hazard outputs resemble realistic hazard patterns.
+
+5. Build a foundation for future work in the other catastrophe modeling modules.
