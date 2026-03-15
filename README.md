@@ -8,6 +8,7 @@ At this stage, the data is being used only for the hazard module, meaning the pr
 
 ## Data Sources
 Hurrine IAN Track : https://www.nhc.noaa.gov/gis/archive_besttrack_results.php?id=al09&name=Hurricane+IAN&year=2022&utm_source=chatgpt.com
+
 Lee County Background : https://maps.leegov.com/datasets/f57536cdc5bf4ecb88618c5ec61a6305_0/explore?location=26.552848%2C-82.011629%2C10
 
 ## Goals
@@ -23,3 +24,31 @@ The goals of this Milestone 1 project are:
 4. Evaluate whether the generated hazard outputs resemble realistic hazard patterns.
 
 5. Build a foundation for future work in the other catastrophe modeling modules.
+
+## Future Work
+
+This milestone is only the first step of the overall project. In future work, I plan to expand AI applications to the remaining catastrophe modeling modules:
+
+Exposure module: represent assets and infrastructure at risk
+
+Vulnerability module: estimate damage response to hazard intensity
+
+Loss module: estimate financial impact and losses
+
+This will help create a broader AI-integrated catastrophe modeling workflow.
+
+## Tools and Methods
+
+1. Python
+
+2. Deep Learning
+
+3. Conditional GAN (cGAN)
+
+4. Geospatial / raster-based hazard data
+
+5. Hurricane Ian case study
+
+## Current Scope
+
+This repository currently contains work related only to Milestone 1, which is limited to the hazard module. The project does not yet include full exposure, vulnerability, or loss modeling.
