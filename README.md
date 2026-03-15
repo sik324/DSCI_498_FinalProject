@@ -6,6 +6,10 @@ This project is part of CAT498 and focuses on applying artificial intelligence t
 The project uses Hurricane Ian hazard-related data as the primary input for model development. The data includes geospatial and storm-related information used to represent the hazard intensity and spatial pattern of the event. This may include raster layers, track-based storm data, wind-related hazard information, and other processed inputs required for training the cGAN model.
 At this stage, the data is being used only for the hazard module, meaning the project is focused on generating or learning hazard patterns rather than estimating exposure, physical damage, or financial loss. The data is preprocessed so that it can be used as input to the AI model and compared with target hazard outputs.
 
+## Data Sources
+Hurrine IAN Track : https://www.nhc.noaa.gov/gis/archive_besttrack_results.php?id=al09&name=Hurricane+IAN&year=2022&utm_source=chatgpt.com
+Lee County Background : https://maps.leegov.com/datasets/f57536cdc5bf4ecb88618c5ec61a6305_0/explore?location=26.552848%2C-82.011629%2C10
+
 ## Goals
 
 The goals of this Milestone 1 project are:
