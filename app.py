@@ -157,60 +157,28 @@ def get_loss_by_mbt():
 def get_tract_data():
     np.random.seed(42)
     n = 221
+     # Lee County land area centroids
+    # Western coastal: Fort Myers Beach, Cape Coral
+    # Eastern: Lehigh Acres, Bonita Springs
     lats = np.concatenate([
-        # Cape Coral west — closest to landfall
-        np.random.uniform(26.52, 26.65, 35),
-        # Cape Coral east
-        np.random.uniform(26.55, 26.70, 25),
-        # Fort Myers Beach — barrier island
-        np.random.uniform(26.37, 26.46, 15),
-        # Matlacha / Pine Island narrow strips
-        np.random.uniform(26.52, 26.65, 10),
-        # Fort Myers city center
-        np.random.uniform(26.56, 26.67, 30),
-        # North Fort Myers
-        np.random.uniform(26.67, 26.75, 20),
-        # Lehigh Acres west
-        np.random.uniform(26.50, 26.62, 30),
-        # Lehigh Acres east
-        np.random.uniform(26.38, 26.52, 20),
-        # Estero / Bonita Beach
-        np.random.uniform(26.38, 26.46, 15),
-        # Bonita Springs inland
-        np.random.uniform(26.32, 26.40, 21),
+        np.random.uniform(26.40, 26.72, 80),  # Cape Coral
+        np.random.uniform(26.50, 26.70, 60),  # Fort Myers
+        np.random.uniform(26.35, 26.55, 50),  # Lehigh Acres
+        np.random.uniform(26.30, 26.45, 31),  # Bonita Springs
     ])
     lons = np.concatenate([
-        # Cape Coral west
-        np.random.uniform(-82.03, -81.92, 35),
-        # Cape Coral east
-        np.random.uniform(-81.92, -81.82, 25),
-        # Fort Myers Beach
-        np.random.uniform(-81.88, -81.84, 15),
-        # Matlacha narrow strip
-        np.random.uniform(-82.06, -82.03, 10),
-        # Fort Myers city
-        np.random.uniform(-81.87, -81.68, 30),
-        # North Fort Myers
-        np.random.uniform(-81.92, -81.75, 20),
-        # Lehigh Acres west
-        np.random.uniform(-81.72, -81.58, 30),
-        # Lehigh Acres east
-        np.random.uniform(-81.60, -81.52, 20),
-        # Estero / Bonita Beach
-        np.random.uniform(-81.83, -81.78, 15),
-        # Bonita Springs
-        np.random.uniform(-81.80, -81.65, 21),
+        np.random.uniform(-82.10, -81.90, 80),  # Cape Coral
+        np.random.uniform(-81.90, -81.65, 60),  # Fort Myers
+        np.random.uniform(-81.70, -81.55, 50),  # Lehigh Acres
+        np.random.uniform(-81.85, -81.65, 31),  # Bonita Springs
     ])
-    wind_hol  = 158 - (lons + 82.0) * 15 + np.random.normal(0, 3, n)
+    # Wind speed higher near coast (west)
+    wind_hol  = 155 - (lons + 82.0) * 12 + np.random.normal(0, 3, n)
     wind_hol  = np.clip(wind_hol, 114, 156)
     wind_cgan = wind_hol + np.random.normal(0.94, 1.5, n)
     wind_cgan = np.clip(wind_cgan, 117, 157)
     tiv       = np.random.exponential(200, n) + 50
     tiv       = np.clip(tiv, 16, 17000)
-    # Higher TIV near coast
-    coastal_mask = lons < -81.88
-    tiv[coastal_mask] *= 2.5
-    tiv = np.clip(tiv, 16, 17000)
     buildings = (tiv * 1.4 + np.random.normal(0, 50, n)).astype(int)
     buildings = np.clip(buildings, 50, 5000)
     return pd.DataFrame({
