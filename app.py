@@ -158,21 +158,20 @@ def get_tract_data():
     np.random.seed(42)
     n = 221
      # Lee County land area centroids
-    # Western coastal: Fort Myers Beach, Cape Coral
-    # Eastern: Lehigh Acres, Bonita Springs
     lats = np.concatenate([
-        np.random.uniform(26.40, 26.72, 80),  # Cape Coral
-        np.random.uniform(26.50, 26.70, 60),  # Fort Myers
-        np.random.uniform(26.35, 26.55, 50),  # Lehigh Acres
-        np.random.uniform(26.30, 26.45, 31),  # Bonita Springs
+        np.random.uniform(26.55, 26.72, 60),  # Cape Coral north
+        np.random.uniform(26.45, 26.58, 50),  # Fort Myers city
+        np.random.uniform(26.38, 26.52, 55),  # Lehigh Acres
+        np.random.uniform(26.32, 26.42, 30),  # Bonita Springs
+        np.random.uniform(26.42, 26.55, 26),  # San Carlos Park
     ])
     lons = np.concatenate([
-        np.random.uniform(-82.10, -81.90, 80),  # Cape Coral
-        np.random.uniform(-81.90, -81.65, 60),  # Fort Myers
-        np.random.uniform(-81.70, -81.55, 50),  # Lehigh Acres
-        np.random.uniform(-81.85, -81.65, 31),  # Bonita Springs
+        np.random.uniform(-81.98, -81.82, 60),  # Cape Coral north
+        np.random.uniform(-81.88, -81.65, 50),  # Fort Myers city
+        np.random.uniform(-81.68, -81.52, 55),  # Lehigh Acres
+        np.random.uniform(-81.82, -81.65, 30),  # Bonita Springs
+        np.random.uniform(-81.82, -81.68, 26),  # San Carlos Park
     ])
-    # Wind speed higher near coast (west)
     wind_hol  = 155 - (lons + 82.0) * 12 + np.random.normal(0, 3, n)
     wind_hol  = np.clip(wind_hol, 114, 156)
     wind_cgan = wind_hol + np.random.normal(0.94, 1.5, n)
