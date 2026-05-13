@@ -83,12 +83,31 @@ def load_validation_summary():
 
 @st.cache_data
 def load_exposure_data():
-    """Load real exposure CSV if available, else return simulated Lee County data."""
-    for fname in ['lee_county_exposure.csv', 'exposure_results.csv',
-                  'tract_exposure.csv', 'lee_exposure.csv']:
+    """Load real exposure data with tract centroids."""
+    # Try merged file first (has lat/lon + loss)
+    for fname in ['lee_tract_merged.csv',
+                  'lee_county_exposure.csv',
+                  'exposure_results.csv']:
         path = f'{EXP_DIR}/{fname}'
         if os.path.exists(path):
-            return pd.read_csv(path), True
+            df = pd.read_csv(path)
+            if 'lat' in df.columns and 'lon' in df.columns:
+                # Rename columns to match app expectations
+                rename = {
+                    'peak_gust_mph' : 'wind_hol',
+                    'TIV_millions'  : 'TIV_M',
+                    'total_buildings': 'buildings',
+                    'loss_M'        : 'loss_M',
+                    'MDR'           : 'MDR',
+                }
+                df = df.rename(columns=rename)
+                if 'wind_cgan' not in df.columns:
+                    df['wind_cgan'] = df['wind_hol'] + np.random.normal(0.94, 1.5, len(df))
+                if 'wind_diff' not in df.columns:
+                    df['wind_diff'] = df['wind_cgan'] - df['wind_hol']
+                # Drop rows with missing lat/lon
+                df = df.dropna(subset=['lat', 'lon'])
+                return df, True
     # Fallback — hardcoded Lee County land-only points
     np.random.seed(42)
     # Four zones — all confirmed land areas
@@ -126,14 +145,14 @@ def load_exposure_data():
 
 @st.cache_data
 def load_loss_data():
-    for fname in ['loss_results.csv', 'loss_comparison.csv',
-                  'vulnerability_loss.csv']:
+    # Try real loss files first
+    for fname in ['loss_by_tract.csv', 'loss_results.csv',
+                  'loss_comparison.csv']:
         path = f'{LOSS_DIR}/{fname}'
         if os.path.exists(path):
-            return pd.read_csv(path)
-        path2 = f'{VULN_DIR}/{fname}'
-        if os.path.exists(path2):
-            return pd.read_csv(path2)
+            df = pd.read_csv(path)
+            # Aggregate to building type level for chart
+            return df
     # Fallback — your actual project numbers
     return pd.DataFrame({
         'building_type'     : ['W1 Wood Frame', 'W2 Wood Comm.',
