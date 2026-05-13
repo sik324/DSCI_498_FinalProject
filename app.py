@@ -1,919 +1,968 @@
 """
-Hurricane Catastrophe Modeling with cGAN Super-Resolution
-Streamlit Web App — CSC-498 Final Project
-Lehigh University | Spring 2026
-
-Tabs:
-1. Wind Hazard    — Holland wind field + Ian track
-2. Exposure       — Building inventory + TIV maps
-3. cGAN Results   — Before/after comparison
-4. Loss Analysis  — Holland vs cGAN loss + wind threshold
-5. Training       — Loss curves + model metrics
+Hurricane Ian Catastrophe Model — Streamlit Dashboard
+CAT-402 + CSC-498 Final Project | Lehigh University | Spring 2026
+GitHub: sik324/DSCI_498_FinalProject
 """
 
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.patches as mpatches
-import plotly.graph_objects as go
 import plotly.express as px
+import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import json
 import os
 
-# ── Page config ───────────────────────────────────────────
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Hurricane CatModel — cGAN",
+    page_title="Hurricane Ian Cat Model",
     page_icon="🌀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ── Custom CSS ────────────────────────────────────────────
-st.markdown("""
-<style>
-.main-header {
-    background: linear-gradient(135deg, #0A2342, #1565C0);
-    padding: 20px 24px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-}
-.main-title {
-    color: white;
-    font-size: 26px;
-    font-weight: 700;
-    margin: 0;
-}
-.main-sub {
-    color: #B0BEC5;
-    font-size: 13px;
-    margin-top: 4px;
-}
-.metric-card {
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-    border: 1px solid #E0E0E0;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-.metric-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: #1565C0;
-}
-.metric-value-accent {
-    font-size: 28px;
-    font-weight: 700;
-    color: #FF6F00;
-}
-.metric-label {
-    font-size: 12px;
-    color: #546E7A;
-    margin-top: 4px;
-}
-.section-header {
-    background: #1565C0;
-    color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 12px;
-}
-.highlight-box {
-    background: #E8F5E9;
-    border-left: 4px solid #2E7D32;
-    padding: 12px 16px;
-    border-radius: 0 8px 8px 0;
-    margin: 8px 0;
-}
-.warning-box {
-    background: #FFF3E0;
-    border-left: 4px solid #FF6F00;
-    padding: 12px 16px;
-    border-radius: 0 8px 8px 0;
-    margin: 8px 0;
-}
-</style>
-""", unsafe_allow_html=True)
+# ── Path configuration ────────────────────────────────────────────────────────
+# Works both locally and on Streamlit Cloud
+# On Streamlit Cloud: put outputs/ folder in repo root
+# Locally or Colab:   set OUTPUTS_DIR env variable or use default below
+OUTPUTS_DIR = os.environ.get(
+    'OUTPUTS_DIR',
+    'outputs'   # relative path — put outputs/ in same folder as app.py
+)
+CGAN_DIR  = f'{OUTPUTS_DIR}/cgan'
+BAL_DIR   = f'{CGAN_DIR}/balanced_data'
+EXP_DIR   = f'{OUTPUTS_DIR}/exposure'
+HAZ_DIR   = f'{OUTPUTS_DIR}/hazard'
+LOSS_DIR  = f'{OUTPUTS_DIR}/loss'
+VULN_DIR  = f'{OUTPUTS_DIR}/vulnerability'
 
-# ── Header ────────────────────────────────────────────────
-st.markdown("""
-<div class="main-header">
-    <p class="main-title">🌀 Hurricane Catastrophe Modeling with cGAN Super-Resolution</p>
-    <p class="main-sub">
-        CAT-402 + CSC-498 &nbsp;|&nbsp; Hurricane Ian 2022 &nbsp;|&nbsp;
-        Lee County, Florida &nbsp;|&nbsp; Lehigh University &nbsp;|&nbsp; Spring 2026
-    </p>
-</div>
-""", unsafe_allow_html=True)
+# ── Helper: safe image loader ─────────────────────────────────────────────────
+def show_image(path, caption='', width=None):
+    if os.path.exists(path):
+        st.image(path, caption=caption, use_column_width=(width is None))
+    else:
+        st.info(f"Image not found: {path}")
 
-# ── Data — embedded directly for Streamlit Cloud ─────────
-# All data is embedded as constants so no file uploads needed
-
-# Training history (100 epochs)
+# ── Load functions (cached) ───────────────────────────────────────────────────
 @st.cache_data
-def get_training_history():
+def load_training_loss():
+    path = f'{CGAN_DIR}/training_loss_balanced.csv'
+    if os.path.exists(path):
+        return pd.read_csv(path)
+    path2 = f'{CGAN_DIR}/training_loss.csv'
+    if os.path.exists(path2):
+        return pd.read_csv(path2)
+    return None
+
+@st.cache_data
+def load_validation_summary():
+    path = f'{CGAN_DIR}/validation_summary.json'
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    # Fallback — your actual results from today's session
+    return {
+        'model'                 : 'generator_balanced_best.pth',
+        'epoch'                 : 61,
+        'val_loss'              : 0.0050,
+        'peak_wind_error_pct'   : 0.6,
+        'spatial_correlation'   : 0.9742,
+        'mae_cgan_mph'          : 1.99,
+        'mae_baseline_mph'      : 1.78,
+        'resolution_in'         : '22x21',
+        'resolution_out'        : '201x201',
+        'conditioning_collapse' : True,
+        'features_responsive'   : [],
+        'features_ignored'      : ['Vmax', 'RMW', 'Pmin', 'Latitude'],
+        'model_type_actual'     : 'Physics-guided super-resolution',
+        'model_type_intended'   : 'Conditional GAN',
+    }
+
+@st.cache_data
+def load_exposure_data():
+    """Load real exposure CSV if available, else return simulated Lee County data."""
+    for fname in ['lee_county_exposure.csv', 'exposure_results.csv',
+                  'tract_exposure.csv', 'lee_exposure.csv']:
+        path = f'{EXP_DIR}/{fname}'
+        if os.path.exists(path):
+            return pd.read_csv(path), True
+    # Fallback — hardcoded Lee County land-only points
     np.random.seed(42)
-    epochs  = list(range(1, 101))
-    g_loss  = [8.74*np.exp(-e*0.03)+7+np.sin(e*0.3)*0.4 for e in epochs]
-    d_loss  = [0.35*np.exp(-e*0.04)+0.05+abs(np.sin(e*0.2))*0.15
-               for e in epochs]
-    val_loss= [0.27*np.exp(-e*0.06)+0.005+abs(np.sin(e*0.15))*0.003
-               for e in epochs]
-    # Insert known best values
-    val_loss[60] = 0.0050  # epoch 61 best
-    return pd.DataFrame({
-        'epoch': epochs,
-        'g_loss': [round(g, 4) for g in g_loss],
-        'd_loss': [round(d, 4) for d in d_loss],
-        'val_loss': [round(v, 4) for v in val_loss]
-    })
+    # Four zones — all confirmed land areas
+    zones = [
+        # (lat_min, lat_max, lon_min, lon_max, n, zone_name)
+        (26.52, 26.72, -82.00, -81.88, 70,  'Cape Coral (NE)'),
+        (26.52, 26.68, -81.90, -81.65, 70,  'Fort Myers'),
+        (26.52, 26.68, -81.65, -81.35, 50,  'Lehigh Acres'),
+        (26.30, 26.45, -81.82, -81.65, 31,  'Bonita Springs'),
+    ]
+    rows = []
+    for lat_mn, lat_mx, lon_mn, lon_mx, n, zone in zones:
+        lats = np.random.uniform(lat_mn, lat_mx, n)
+        lons = np.random.uniform(lon_mn, lon_mx, n)
+        # Wind higher near coast (western = lower longitude)
+        wind_h = 155 - (lons + 82.0) * 12 + np.random.normal(0, 3, n)
+        wind_h = np.clip(wind_h, 90, 157)
+        wind_c = wind_h + np.random.normal(0.94, 1.5, n)
+        wind_c = np.clip(wind_c, 90, 160)
+        tiv    = np.random.exponential(200, n) + 50
+        tiv    = np.clip(tiv, 16, 17000)
+        bldgs  = np.clip((tiv * 1.4 + np.random.normal(0, 50, n)).astype(int), 50, 5000)
+        for i in range(n):
+            rows.append({
+                'lat'       : lats[i],
+                'lon'       : lons[i],
+                'wind_hol'  : wind_h[i],
+                'wind_cgan' : wind_c[i],
+                'TIV_M'     : tiv[i],
+                'buildings' : bldgs[i],
+                'zone'      : zone,
+                'wind_diff' : wind_c[i] - wind_h[i],
+            })
+    return pd.DataFrame(rows), False
 
 @st.cache_data
-def get_wind_distribution():
+def load_loss_data():
+    for fname in ['loss_results.csv', 'loss_comparison.csv',
+                  'vulnerability_loss.csv']:
+        path = f'{LOSS_DIR}/{fname}'
+        if os.path.exists(path):
+            return pd.read_csv(path)
+        path2 = f'{VULN_DIR}/{fname}'
+        if os.path.exists(path2):
+            return pd.read_csv(path2)
+    # Fallback — your actual project numbers
     return pd.DataFrame({
-        'wind_bin':    ['110-120','120-130','130-140','140-150','150-160'],
-        'tracts_hol':  [3, 10, 28, 110, 70],
-        'tracts_cgan': [2,  8, 24, 102, 85],
-        'TIV_hol_B':   [0.19, 3.80, 6.79, 14.57, 7.81],
-        'TIV_cgan_B':  [0.10, 2.42, 7.22, 15.18, 8.24],
+        'building_type'     : ['W1 Wood Frame', 'W2 Wood Comm.',
+                               'C1 Concrete', 'C3 Conc. Shear',
+                               'RM1 Masonry', 'Total'],
+        'count'             : [187000, 42000, 28000, 18000, 22000, 311512],
+        'tiv_b'             : [32.07, 8.42, 4.21, 2.87, 2.66, 50.23],
+        'mdr_hol_pct'       : [60.5, 48.2, 35.1, 38.4, 52.3, 56.3],
+        'mdr_cgan_pct'      : [58.1, 46.5, 33.8, 37.0, 50.4, 54.2],
+        'loss_hol_b'        : [18.88, 4.06, 1.48, 1.10, 1.39, 28.29],
+        'loss_cgan_b'       : [18.14, 3.91, 1.42, 1.06, 1.34, 27.19],
     })
 
-@st.cache_data
-def get_loss_by_mbt():
-    return pd.DataFrame({
-        'MBT':      ['W1','MH','M1','C1','S1'],
-        'MBT_name': ['Wood Frame','Mobile Home','Masonry','Concrete','Steel'],
-        'hol_B':    [12.422, 2.493, 1.931, 1.025, 0.749],
-        'cgan_B':   [12.586, 2.509, 1.961, 1.044, 0.763],
-        'diff_M':   [163.7, 16.2, 29.8, 18.9, 13.8],
-        'TIV_pct':  [63.9, 9.2, 11.9, 8.7, 6.3],
-    })
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+st.sidebar.image(
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/24701-nature-natural-beauty.jpg/1px-24701-nature-natural-beauty.jpg",
+    width=1
+)  # invisible spacer
+st.sidebar.title("🌀 Hurricane Ian")
+st.sidebar.markdown("**Catastrophe Model Dashboard**")
+st.sidebar.markdown("CAT-402 + CSC-498 | Lehigh University")
+st.sidebar.divider()
 
-@st.cache_data
-def get_tract_data():
-    np.random.seed(42)
-    n = 221
-     # Lee County land area centroids
-    # Western coastal: Fort Myers Beach, Cape Coral
-    # Eastern: Lehigh Acres, Bonita Springs
-    lats = np.concatenate([
-        np.random.uniform(26.40, 26.72, 80),  # Cape Coral
-        np.random.uniform(26.50, 26.70, 60),  # Fort Myers
-        np.random.uniform(26.35, 26.55, 50),  # Lehigh Acres
-        np.random.uniform(26.30, 26.45, 31),  # Bonita Springs
-    ])
-    lons = np.concatenate([
-        np.random.uniform(-82.10, -81.90, 80),  # Cape Coral
-        np.random.uniform(-81.90, -81.65, 60),  # Fort Myers
-        np.random.uniform(-81.70, -81.55, 50),  # Lehigh Acres
-        np.random.uniform(-81.85, -81.65, 31),  # Bonita Springs
-    ])
-    # Wind speed higher near coast (west)
-    wind_hol  = 155 - (lons + 82.0) * 12 + np.random.normal(0, 3, n)
-    wind_hol  = np.clip(wind_hol, 114, 156)
-    wind_cgan = wind_hol + np.random.normal(0.94, 1.5, n)
-    wind_cgan = np.clip(wind_cgan, 117, 157)
-    tiv       = np.random.exponential(200, n) + 50
-    tiv       = np.clip(tiv, 16, 17000)
-    buildings = (tiv * 1.4 + np.random.normal(0, 50, n)).astype(int)
-    buildings = np.clip(buildings, 50, 5000)
-    return pd.DataFrame({
-        'lat': lats, 'lon': lons,
-        'wind_hol': wind_hol, 'wind_cgan': wind_cgan,
-        'TIV_M': tiv, 'buildings': buildings,
-        'wind_diff': wind_cgan - wind_hol,
-    })
-    
-    wind_hol  = 155 - (lons + 82.0) * 12 + np.random.normal(0, 3, n)
-    wind_hol  = np.clip(wind_hol, 114, 156)
-    wind_cgan = wind_hol + np.random.normal(0.94, 1.5, n)
-    wind_cgan = np.clip(wind_cgan, 117, 157)
-    tiv       = np.random.exponential(200, n) + 50
-    tiv       = np.clip(tiv, 16, 17000)
-    buildings = (tiv * 1.4 + np.random.normal(0, 50, n)).astype(int)
-    buildings = np.clip(buildings, 50, 5000)
-    return pd.DataFrame({
-        'lat': lats, 'lon': lons,
-        'wind_hol': wind_hol, 'wind_cgan': wind_cgan,
-        'TIV_M': tiv, 'buildings': buildings,
-        'wind_diff': wind_cgan - wind_hol,
-    })
-    # Wind speed — higher near coast (west)
-    wind_hol  = 155 - (lons + 82.0) * 12 + np.random.normal(0, 3, n)
-    wind_hol  = np.clip(wind_hol, 114, 156)
-    wind_cgan = wind_hol + np.random.normal(0.94, 1.5, n)
-    wind_cgan = np.clip(wind_cgan, 117, 157)
-    tiv       = np.random.exponential(200, n) + 50
-    tiv       = np.clip(tiv, 16, 17000)
-    buildings = (tiv * 1.4 + np.random.normal(0, 50, n)).astype(int)
-    buildings = np.clip(buildings, 50, 5000)
-    return pd.DataFrame({
-        'lat': lats, 'lon': lons,
-        'wind_hol': wind_hol, 'wind_cgan': wind_cgan,
-        'TIV_M': tiv, 'buildings': buildings,
-        'wind_diff': wind_cgan - wind_hol,
-    })
+page = st.sidebar.radio(
+    "Navigation",
+    ["🏠 Overview",
+     "🌪 Hazard Module",
+     "🏘 Exposure Module",
+     "🤖 cGAN Results",
+     "💰 Loss Analysis",
+     "📊 Model Training",
+     "🛡 Peer Review Defense"]
+)
 
-training_df  = get_training_history()
-wind_dist_df = get_wind_distribution()
-loss_mbt_df  = get_loss_by_mbt()
-tract_df     = get_tract_data()
+st.sidebar.divider()
+st.sidebar.markdown("**Storm Parameters**")
+st.sidebar.markdown("📍 Landfall: Lee County, FL")
+st.sidebar.markdown("📅 Date: Sep 28, 2022")
+st.sidebar.markdown("💨 Intensity: Cat 4 — 130 kt")
+st.sidebar.markdown("🌡 Min Pressure: 937 mb")
+st.sidebar.markdown("📏 RMW: ~15 nm")
 
-# ── Tabs ──────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🌪️ Wind Hazard",
-    "🏘️ Exposure",
-    "🤖 cGAN Results",
-    "💰 Loss Analysis",
-    "📈 Training"
-])
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 1 — OVERVIEW
+# ══════════════════════════════════════════════════════════════════════════════
+if page == "🏠 Overview":
+    st.title("🌀 Hurricane Ian Catastrophe Model")
+    st.markdown("### Lee County, Florida — September 28, 2022")
+    st.markdown(
+        "A HAZUS-based catastrophe model enhanced with conditional GAN "
+        "super-resolution for building-level loss estimation."
+    )
 
-# ══════════════════════════════════════════════════════════
-# TAB 1 — WIND HAZARD
-# ══════════════════════════════════════════════════════════
-with tab1:
-    st.markdown('<div class="section-header">Module 1 — Hazard: Holland Wind Field | Hurricane Ian 2022</div>',
-                unsafe_allow_html=True)
+    # Top metrics
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Landfall",        "Cat 4 — 130 kt")
+    c2.metric("Min Pressure",    "937 mb")
+    c3.metric("Peak Gust",       "157 mph")
+    c4.metric("Total TIV",       "$50.23B")
+    c5.metric("Estimated Loss",  "$28.29B")
 
-    # Key metrics
-    c1,c2,c3,c4 = st.columns(4)
-    with c1:
-        st.markdown('<div class="metric-card"><div class="metric-value">158.7</div>'
-                    '<div class="metric-label">Peak gust (mph)</div></div>',
-                    unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="metric-card"><div class="metric-value">140 kt</div>'
-                    '<div class="metric-label">Ian Vmax at landfall</div></div>',
-                    unsafe_allow_html=True)
-    with c3:
-        st.markdown('<div class="metric-card"><div class="metric-value">937 mb</div>'
-                    '<div class="metric-label">Min central pressure</div></div>',
-                    unsafe_allow_html=True)
-    with c4:
-        st.markdown('<div class="metric-card"><div class="metric-value">Sep 28</div>'
-                    '<div class="metric-label">Landfall 2022 UTC</div></div>',
-                    unsafe_allow_html=True)
+    st.divider()
 
-    st.markdown("---")
+    # Pipeline diagram
+    col1, col2 = st.columns([1, 1])
 
-    # Sliders
-    col_ctrl, col_map = st.columns([1, 3])
-    with col_ctrl:
-        st.markdown("**Storm Parameters**")
-        vmax    = st.slider("Vmax (kt)",   64, 165, 140, 1)
-        rmw     = st.slider("RMW (nm)",     5, 100,  20, 1)
-        pmin    = st.slider("Pmin (mb)",  880,1013, 937, 1)
-        st.markdown("---")
-        st.markdown("**Display**")
-        wind_unit = st.radio("Wind units", ["mph","kt","m/s"])
-        show_track= st.checkbox("Show Ian track", value=True)
+    with col1:
+        st.subheader("Project Pipeline")
+        st.markdown("""
+        ```
+        ┌─────────────────────────────────┐
+        │  IBTrACS Storm Track (NOAA)     │  Data
+        └──────────────┬──────────────────┘
+                       ↓
+        ┌─────────────────────────────────┐
+        │  Holland Wind Field (0.05°)     │  CAT-402
+        │  Hazard Module                  │  Module 1
+        └──────────────┬──────────────────┘
+                       ↓
+        ┌─────────────────────────────────┐
+        │  cGAN Super-Resolution          │  CSC-498
+        │  0.05° → 0.005° (10× finer)    │
+        └──────────────┬──────────────────┘
+                       ↓
+        ┌─────────────────────────────────┐
+        │  HAZUS Exposure Module          │  CAT-402
+        │  311,512 buildings, $50.23B TIV │  Module 2
+        └──────────────┬──────────────────┘
+                       ↓
+        ┌─────────────────────────────────┐
+        │  Vulnerability + Loss           │  CAT-402
+        │  $28.29B estimated loss         │  Modules 3+4
+        └─────────────────────────────────┘
+        ```
+        """)
 
-        factor = {'mph':2.237,'kt':1.944,'m/s':1.0}[wind_unit]
-        peak   = vmax * 1.15 * factor
-        st.markdown(f"""
-        <div class="highlight-box">
-        <b>Estimated peak:</b> {peak:.1f} {wind_unit}<br>
-        <b>Category:</b> {'Cat 5' if vmax>=137 else 'Cat 4' if vmax>=113
-                          else 'Cat 3' if vmax>=96 else 'Cat 2' if vmax>=83
-                          else 'Cat 1' if vmax>=64 else 'TS'}
-        </div>""", unsafe_allow_html=True)
+    with col2:
+        st.subheader("Key Results Summary")
+        results = pd.DataFrame({
+            'Module'   : ['Hazard', 'Hazard', 'cGAN', 'cGAN',
+                          'Exposure', 'Loss', 'Loss'],
+            'Metric'   : ['Peak wind speed', 'Grid resolution',
+                          'Correlation (r)', 'Peak wind error',
+                          'Total buildings', 'Holland loss',
+                          'cGAN loss'],
+            'Value'    : ['157 mph', '0.05° (5.5 km)',
+                          '0.9742', '0.6%',
+                          '311,512', '$28.29B', '$27.19B'],
+            'Status'   : ['✓', '→ improved by cGAN',
+                          '✓ Excellent', '✓ Excellent',
+                          '✓', '—', '↓ $1.1B lower'],
+        })
+        st.dataframe(results, hide_index=True, use_container_width=True)
 
-    with col_map:
-        # Generate wind field
-        lat_range = np.linspace(24, 31.5, 50)
-        lon_range = np.linspace(-87, -79, 50)
-        lon_grid, lat_grid = np.meshgrid(lon_range, lat_range)
-        eye_lat, eye_lon = 26.55, -82.0
-        r = np.sqrt((lat_grid-eye_lat)**2 + (lon_grid-eye_lon)**2)
-        norm_vmax = vmax / 140.0
-        wind_field = norm_vmax * 158.7 * np.exp(-r * 1.2) * factor
+        st.subheader("Courses")
+        st.info("**CAT-402** — Hazard + Exposure + Vulnerability + Loss modules")
+        st.success("**CSC-498** — cGAN super-resolution + validation + peer review")
 
-        fig = go.Figure()
-        fig.add_trace(go.Contour(
-            z=wind_field, x=lon_range, y=lat_range,
-            colorscale='RdYlGn_r',
-            contours=dict(start=0, end=peak*1.1, size=10),
-            colorbar=dict(title=f'Wind ({wind_unit})'),
-            name='Wind field'
-        ))
-        if show_track:
-            track_lats = [20.5,21.3,22.1,23.0,23.9,24.8,25.6,26.4,27.2,28.1]
-            track_lons = [-83.0,-82.8,-82.5,-82.2,-82.1,-82.0,-81.9,-81.8,-81.5,-81.0]
-            fig.add_trace(go.Scatter(
-                x=track_lons, y=track_lats,
-                mode='lines+markers',
-                line=dict(color='cyan', width=2),
-                marker=dict(size=6, color='cyan'),
-                name='Ian track'
-            ))
-            fig.add_annotation(
-                x=-81.8, y=26.4, text='Landfall<br>Sep 28',
-                showarrow=True, arrowhead=2,
-                font=dict(color='white', size=11),
-                arrowcolor='white'
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 2 — HAZARD MODULE
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "🌪 Hazard Module":
+    st.title("🌪 Hazard Module — Holland Wind Field")
+    st.markdown("**Method:** Holland (1980) parametric wind field model")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Peak 3-s Gust",    "157 mph",  "Cat 4 at landfall")
+    c2.metric("Grid Resolution",  "0.05°",    "~5.5 km per cell")
+    c3.metric("Track Records",    "74",       "IBTrACS records")
+    c4.metric("Study Area",       "Lee County", "FIPS 12071")
+
+    st.divider()
+
+    tab1, tab2, tab3 = st.tabs(["Wind Field Maps", "Storm Track", "Methodology"])
+
+    with tab1:
+        st.subheader("Wind Field Comparison")
+        show_image(
+            f'{CGAN_DIR}/wind_field_comparison_balanced.png',
+            caption='Left: Holland coarse (0.05°) | Centre: cGAN (0.005°) | Right: Holland fine reference (0.005°)'
+        )
+        st.divider()
+        col1, col2 = st.columns(2)
+        with col1:
+            show_image(
+                f'{CGAN_DIR}/holland_vs_cgan_land_comparison.png',
+                caption='Holland vs cGAN — Lee County land area'
             )
-        fig.update_layout(
-            title=f'Hurricane Ian Wind Field — Holland Model (Vmax={vmax}kt)',
-            xaxis_title='Longitude', yaxis_title='Latitude',
-            height=450, margin=dict(l=0,r=0,t=40,b=0),
-            plot_bgcolor='#0A1628', paper_bgcolor='#0A1628',
-            font=dict(color='white')
+        with col2:
+            show_image(
+                f'{CGAN_DIR}/wind_exposure_overlay.png',
+                caption='Wind field overlaid with exposure data'
+            )
+
+    with tab2:
+        st.subheader("Hurricane Ian Track — Lee County Landfall")
+        # Ian track points near Florida
+        ian_track = pd.DataFrame({
+            'lat' : [23.2, 24.1, 25.0, 25.9, 26.4, 26.8, 27.8, 28.8, 29.8],
+            'lon' : [-84.3,-83.5,-82.8,-82.5,-82.2,-82.0,-81.6,-81.2,-80.9],
+            'vmax': [60,   80,   100,  115,  125,  130,  110,  80,   60  ],
+            'time': ['Sep 27 00Z','Sep 27 06Z','Sep 27 12Z','Sep 27 18Z',
+                     'Sep 28 00Z','Sep 28 18Z','Sep 29 00Z','Sep 29 06Z',
+                     'Sep 29 12Z'],
+        })
+        fig = px.scatter_mapbox(
+            ian_track, lat='lat', lon='lon',
+            size='vmax', color='vmax',
+            color_continuous_scale='RdYlGn_r',
+            size_max=25,
+            mapbox_style='carto-positron',
+            zoom=6,
+            center={'lat': 26.5, 'lon': -82.5},
+            hover_data={'time': True, 'vmax': True},
+            labels={'vmax': 'Wind (kt)', 'time': 'Time'},
+            title='Hurricane Ian track — color = intensity (kt)'
+        )
+        fig.add_trace(go.Scattermapbox(
+            lat=ian_track['lat'], lon=ian_track['lon'],
+            mode='lines',
+            line=dict(width=2, color='gray'),
+            showlegend=False
+        ))
+        # Lee County marker
+        fig.add_trace(go.Scattermapbox(
+            lat=[26.55], lon=[-81.80],
+            mode='markers+text',
+            marker=dict(size=12, color='red', symbol='star'),
+            text=['Lee County'],
+            textposition='top right',
+            showlegend=False
+        ))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tab3:
+        st.subheader("Holland (1980) Wind Field Model")
+        st.markdown("""
+        **Gradient wind equation:**
+        ```
+        Vgr(r) = sqrt( B/ρ × (Rmw/r)^B × ΔP × exp(-(Rmw/r)^B) + (r×f/2)² ) - r×f/2
+        ```
+
+        **Parameters used for Ian:**
+        | Parameter | Value | Source |
+        |-----------|-------|--------|
+        | Vmax | 130 kt | IBTrACS |
+        | Pmin | 937 mb | IBTrACS |
+        | Penv | 1013 mb | Standard atmosphere |
+        | RMW  | 15 nm  | IBTrACS |
+        | Holland B | 1.67 | Willoughby & Rahn (2004) |
+        | Latitude | 26.8°N | IBTrACS |
+
+        **Post-processing:**
+        - Surface reduction: ×0.80 (land), ×0.90 (water)
+        - Asymmetry correction: Shapiro (1983) α=0.5
+        - Gust factor: ×1.11 (Harper et al. 2010)
+        """)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 3 — EXPOSURE MODULE
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "🏘 Exposure Module":
+    st.title("🏘 Exposure Module — Lee County Building Inventory")
+    st.markdown("**Method:** HAZUS MH v4.0 model building type classification")
+
+    df, is_real = load_exposure_data()
+    if not is_real:
+        st.warning("⚠ Showing simulated tract locations. Upload real exposure CSV to outputs/exposure/ for actual data.")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Census Tracts",    "223")
+    c2.metric("Total Buildings",  "311,512")
+    c3.metric("Total TIV",        "$50.23B")
+    c4.metric("Avg TIV/Building", "$161K")
+
+    st.divider()
+
+    tab1, tab2, tab3 = st.tabs(["Map", "Building Types", "Wind vs TIV"])
+
+    with tab1:
+        st.subheader("Lee County Census Tract Locations")
+        color_col = st.selectbox(
+            "Color by:",
+            ['wind_hol', 'wind_cgan', 'TIV_M', 'buildings', 'wind_diff']
+        )
+        fig = px.scatter_mapbox(
+            df, lat='lat', lon='lon',
+            color=color_col,
+            size='TIV_M',
+            color_continuous_scale='RdYlGn_r',
+            mapbox_style='carto-positron',
+            zoom=9,
+            center={'lat': 26.55, 'lon': -81.80},
+            size_max=15,
+            opacity=0.85,
+            labels={
+                'wind_hol'  : 'Holland wind (mph)',
+                'wind_cgan' : 'cGAN wind (mph)',
+                'TIV_M'     : 'TIV ($M)',
+                'buildings' : 'Buildings',
+                'wind_diff' : 'Wind diff (mph)',
+            },
+            title='Lee County census tracts'
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # Wind decay profile
-    st.markdown('<div class="section-header">Wind Decay Profile — Distance from Eyewall</div>',
-                unsafe_allow_html=True)
-    dist = np.linspace(0, 200, 100)
-    rmw_km = rmw * 1.852
-    wind_profile = (vmax * 1.15 * factor *
-                    np.where(dist <= rmw_km,
-                             dist/rmw_km,
-                             np.exp(-(dist-rmw_km)/80)))
+    with tab2:
+        st.subheader("HAZUS Building Type Distribution")
+        btype = pd.DataFrame({
+            'Type'       : ['W1 Wood Frame', 'W2 Wood Comm.',
+                            'C1 Concrete', 'C3 Conc. Shear',
+                            'RM1 Masonry', 'Other'],
+            'Count'      : [187000, 42000, 28000, 18000, 22000, 14512],
+            'TIV_B'      : [32.07, 8.42, 4.21, 2.87, 2.66, 0.00],
+            'Avg_TIV_K'  : [145, 890, 2100, 1800, 650, 420],
+        })
+        col1, col2 = st.columns(2)
+        with col1:
+            fig = px.pie(
+                btype, values='Count', names='Type',
+                title='Buildings by type',
+                color_discrete_sequence=px.colors.qualitative.Set2,
+                hole=0.4
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            fig = px.bar(
+                btype, x='Type', y='TIV_B',
+                title='TIV by building type ($B)',
+                color='TIV_B',
+                color_continuous_scale='Blues',
+                labels={'TIV_B': 'TIV ($B)'}
+            )
+            fig.update_xaxes(tickangle=30)
+            st.plotly_chart(fig, use_container_width=True)
 
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(
-        x=dist, y=wind_profile,
-        mode='lines', name='Wind speed',
-        line=dict(color='#FF6F00', width=2.5),
-        fill='tozeroy', fillcolor='rgba(255,111,0,0.1)'
-    ))
-    fig2.add_vline(x=rmw_km, line_dash='dash',
-                   line_color='cyan',
-                   annotation_text=f'RMW ({rmw}nm)',
-                   annotation_font_color='cyan')
-    fig2.update_layout(
-        xaxis_title='Distance from center (km)',
-        yaxis_title=f'Wind speed ({wind_unit})',
-        height=300, margin=dict(l=0,r=0,t=20,b=0)
+    with tab3:
+        st.subheader("Wind Speed vs TIV by Tract")
+        fig = px.scatter(
+            df, x='wind_hol', y='TIV_M',
+            color='wind_diff',
+            size='buildings',
+            color_continuous_scale='RdYlGn',
+            labels={
+                'wind_hol'  : 'Holland wind speed (mph)',
+                'TIV_M'     : 'Total Insured Value ($M)',
+                'wind_diff' : 'cGAN - Holland (mph)',
+                'buildings' : 'Buildings'
+            },
+            title='Wind speed vs exposure value by census tract',
+            hover_data=['buildings']
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 4 — cGAN RESULTS
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "🤖 cGAN Results":
+    st.title("🤖 cGAN Super-Resolution Results")
+    st.markdown(
+        "**Model:** U-Net Generator + PatchGAN Discriminator  |  "
+        "**Training:** 100 epochs, 2,500 balanced samples  |  "
+        "**Resolution:** 22×21 → 201×201"
     )
-    st.plotly_chart(fig2, use_container_width=True)
 
-# ══════════════════════════════════════════════════════════
-# TAB 2 — EXPOSURE
-# ══════════════════════════════════════════════════════════
-with tab2:
-    st.markdown('<div class="section-header">Module 2 — Exposure: HAZUS Building Inventory | Lee County FL</div>',
-                unsafe_allow_html=True)
+    val = load_validation_summary()
 
-    c1,c2,c3,c4 = st.columns(4)
-    with c1:
-        st.markdown('<div class="metric-card"><div class="metric-value">$50.2B</div>'
-                    '<div class="metric-label">Total TIV</div></div>',
-                    unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="metric-card"><div class="metric-value">311K</div>'
-                    '<div class="metric-label">Total buildings</div></div>',
-                    unsafe_allow_html=True)
-    with c3:
-        st.markdown('<div class="metric-card"><div class="metric-value">221</div>'
-                    '<div class="metric-label">Land tracts (of 223)</div></div>',
-                    unsafe_allow_html=True)
-    with c4:
-        st.markdown('<div class="metric-card"><div class="metric-value">$227M</div>'
-                    '<div class="metric-label">Avg TIV per tract</div></div>',
-                    unsafe_allow_html=True)
+    # Key metrics
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Best Epoch",       str(val.get('epoch', 61)))
+    c2.metric("Val Loss",         f"{val.get('val_loss', 0.005):.4f}")
+    c3.metric("Correlation (r)",  f"{val.get('spatial_correlation', 0.9742):.4f}",
+              "✓ Excellent")
+    c4.metric("Peak Wind Error",  f"{val.get('peak_wind_error_pct', 0.6):.1f}%",
+              "✓ Excellent")
+    c5.metric("Model Type",       val.get('model_type_actual', 'Super-resolution'))
 
-    st.markdown("---")
-    col1, col2 = st.columns([2, 1])
+    st.divider()
 
-    with col1:
-        map_type = st.radio(
-            "Map display",
-            ["TIV by tract", "Buildings by tract",
-             "Wind speed (Holland)", "Wind speed (cGAN)",
-             "Risk score (wind × TIV)"],
-            horizontal=True
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Wind Field Comparison",
+        "Sensitivity Analysis",
+        "Key Findings",
+        "Training Data Audit"
+    ])
+
+    with tab1:
+        st.subheader("Before vs After cGAN")
+        show_image(
+            f'{CGAN_DIR}/wind_field_comparison_balanced.png',
+            caption='Left: Holland coarse (0.05°) | Centre: cGAN output (0.005°) | Right: Holland fine reference (0.005°)'
+        )
+        st.divider()
+        col1, col2 = st.columns(2)
+        with col1:
+            show_image(
+                f'{CGAN_DIR}/wind_distribution_comparison.png',
+                caption='Wind speed distribution: Holland vs cGAN'
+            )
+        with col2:
+            show_image(
+                f'{CGAN_DIR}/holland_vs_cgan_loss_comparison.png',
+                caption='Loss comparison: Holland vs cGAN'
+            )
+
+    with tab2:
+        st.subheader("Feature Sensitivity Analysis")
+        show_image(
+            f'{CGAN_DIR}/feature_sensitivity.png',
+            caption='Sensitivity of cGAN output to each conditioning feature (±30% perturbation)'
+        )
+        st.divider()
+        show_image(
+            f'{CGAN_DIR}/feature_importance.png',
+            caption='Feature importance ranking (std dev of peak wind output)'
+        )
+        st.info(
+            "**Finding:** All 4 features show < 0.1 mph variation — "
+            "confirmed as numerical noise. Conditioning collapse detected."
         )
 
-        if map_type == "TIV by tract":
-            color_col, title, cmap = 'TIV_M', 'Total TIV ($M)', 'YlOrRd'
-        elif map_type == "Buildings by tract":
-            color_col, title, cmap = 'buildings', 'Building count', 'Blues'
-        elif map_type == "Wind speed (Holland)":
-            color_col, title, cmap = 'wind_hol', 'Holland wind (mph)', 'RdYlGn_r'
-        elif map_type == "Wind speed (cGAN)":
-            color_col, title, cmap = 'wind_cgan', 'cGAN wind (mph)', 'RdYlGn_r'
-        else:
-            tract_df['risk'] = ((tract_df['wind_hol']-114)/42 *
-                                tract_df['TIV_M']/tract_df['TIV_M'].max())
-            color_col, title, cmap = 'risk', 'Risk score', 'Reds'
+    with tab3:
+        st.subheader("Complete Validation Findings")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.success("✓ What Works")
+            st.markdown(f"""
+            | Check | Result |
+            |-------|--------|
+            | Peak wind accuracy | **0.6% error** |
+            | Spatial correlation | **r = 0.9742** |
+            | Resolution | **22×21 → 201×201** |
+            | Physical wind decay | **Confirmed** |
+            | MAE improvement | Marginal (perception-distortion tradeoff) |
+            """)
 
-        fig3 = px.scatter_mapbox(
-            tract_df, lat='lat', lon='lon',
-            color=color_col,
-            color_continuous_scale=cmap,
-            size='TIV_M', size_max=15,
-            opacity=0.75,
-            mapbox_style='carto-positron',
-            zoom=9, center={'lat':26.5,'lon':-81.9},
-            title=title,
-            height=450
+        with col2:
+            st.error("✗ Limitations Discovered")
+            st.markdown("""
+            | Finding | Evidence |
+            |---------|----------|
+            | Conditioning collapse | Zero/ones test identical output |
+            | Circular ground truth | Holland fine as training target |
+            | Single location | Lat std = 0.000 (26.3°N only) |
+            | No ASOS validation | Never tested vs observations |
+            | Climate non-stationarity | Not modeled |
+            """)
+
+        st.divider()
+        st.subheader("Conditioning Collapse Test")
+        collapse_data = pd.DataFrame({
+            'Condition Vector' : ['Normal [1.09, 0.17, 0.85, 0.75]',
+                                  'Zero   [0.00, 0.00, 0.00, 0.00]',
+                                  'Ones   [1.00, 1.00, 1.00, 1.00]'],
+            'Peak Wind (mph)'  : [190.3, 190.5, 190.3],
+            'Verdict'          : ['Baseline', '⚠ Same as baseline',
+                                  '⚠ Same as baseline'],
+        })
+        st.dataframe(collapse_data, hide_index=True, use_container_width=True)
+        st.error(
+            "**Confirmed:** Generator ignores condition vector entirely. "
+            "Model is a super-resolution upsampler, not a true cGAN."
         )
-        fig3.update_layout(margin=dict(l=0,r=0,t=40,b=0))
-        st.plotly_chart(fig3, use_container_width=True)
 
-    with col2:
-        st.markdown("**Building Type Distribution**")
-        mbt_data = {
-            'Type': ['W1 Wood Frame','MH Mobile Home',
-                     'M1 Masonry','C1 Concrete','S1 Steel'],
-            'Pct':  [52, 30, 10, 5, 3]
-        }
-        fig4 = px.pie(
-            mbt_data, values='Pct', names='Type',
-            color_discrete_sequence=['#1565C0','#0277BD','#2E7D32',
-                                     '#FF6F00','#C62828'],
-            height=280
+    with tab4:
+        st.subheader("Training Data Audit")
+        audit = pd.DataFrame({
+            'Parameter'  : ['Total samples', 'Vmax range',
+                            'RMW range', 'Pmin range', 'Latitude'],
+            'Value'      : ['2,500', '64.1 – 164.9 kt',
+                            '10.1 – 55.0 nm', '864.6 – 955.4 mb',
+                            '26.3°N only'],
+            'Diversity'  : ['✓ Good', '✓ Good (654 unique values)',
+                            '✓ Good (436 unique values)', '✓ Good',
+                            '✗ Zero — single location'],
+            'Implication': ['Sufficient', 'Intensity diversity present',
+                            'Size diversity present',
+                            'Pressure diversity present',
+                            '⚠ Cannot generalize to other coastlines'],
+        })
+        st.dataframe(audit, hide_index=True, use_container_width=True)
+
+        st.warning(
+            "**Key finding:** All 2,500 training samples at lat 26.3°N "
+            "(Ian's landfall). This is synthetic parameter augmentation "
+            "of one location — not multi-storm historical database."
         )
-        fig4.update_traces(textposition='inside', textinfo='percent+label',
-                           textfont_size=10)
-        fig4.update_layout(showlegend=False,
-                           margin=dict(l=0,r=0,t=20,b=0))
-        st.plotly_chart(fig4, use_container_width=True)
 
-        st.markdown("**HAZUS MBT Distribution**")
-        st.dataframe(pd.DataFrame({
-            'MBT': ['W1','MH','M1','C1','S1'],
-            'Share': ['52%','30%','10%','5%','3%'],
-            'TIV': ['$32.1B','$4.6B','$6.0B','$4.4B','$3.2B']
-        }), hide_index=True, use_container_width=True)
+        show_image(
+            f'{CGAN_DIR}/climate_nonstationarity.png',
+            caption='Climate non-stationarity — where the model breaks down under future scenarios'
+        )
 
-# ══════════════════════════════════════════════════════════
-# TAB 3 — cGAN RESULTS
-# ══════════════════════════════════════════════════════════
-with tab3:
-    st.markdown('<div class="section-header">CSC-498 — cGAN Wind Field Super-Resolution Results</div>',
-                unsafe_allow_html=True)
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 5 — LOSS ANALYSIS
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "💰 Loss Analysis":
+    st.title("💰 Loss Analysis — Holland vs cGAN")
+    st.markdown("**Method:** HAZUS fragility curves + power law vulnerability")
 
-    c1,c2,c3,c4 = st.columns(4)
-    metrics = [
-        ("0.9965","Correlation","vs Holland fine ref","blue"),
-        ("1.48 mph","MAE","baseline: 1.51 mph","blue"),
-        ("+15","Tracts reclassified","to 150-160 mph","blue"),
-        ("+$242M","Extra loss found","+1.30% cGAN","accent"),
-    ]
-    for col, (val, label, sub, color) in zip([c1,c2,c3,c4], metrics):
-        cls = "metric-value-accent" if color=="accent" else "metric-value"
-        col.markdown(f'<div class="metric-card">'
-                     f'<div class="{cls}">{val}</div>'
-                     f'<div class="metric-label"><b>{label}</b><br>{sub}</div>'
-                     f'</div>', unsafe_allow_html=True)
+    loss_df = load_loss_data()
 
-    st.markdown("---")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Holland Loss",    "$28.29B")
+    c2.metric("cGAN Loss",       "$27.19B",  "-$1.10B")
+    c3.metric("Overall MDR",     "56.3%",    "Holland")
+    c4.metric("cGAN MDR",        "54.2%",    "-2.1 pts")
 
-    # Blend slider
-    blend = st.slider(
-        "🎚️ Blend: Holland Coarse → cGAN Fine",
-        0, 100, 0,
-        help="Drag to see resolution improvement"
-    )
-    if blend == 0:
-        st.info("📊 Showing Holland Coarse (0.05° — 5.5km resolution)")
-    elif blend == 100:
-        st.success("✅ Showing cGAN Output (0.005° — 500m resolution)")
-    else:
-        st.warning(f"🔄 Blending: {blend}% cGAN / {100-blend}% Holland")
+    st.divider()
 
-    col1, col2 = st.columns(2)
+    tab1, tab2, tab3 = st.tabs(["Loss by Building Type", "Wind-Loss Nonlinearity", "Comparison Chart"])
 
-    def make_wind_map(resolution, title, peak):
-        if resolution == 'coarse':
-            lat_r = np.linspace(25.8, 26.8, 22)
-            lon_r = np.linspace(-82.3, -81.3, 21)
-        else:
-            lat_r = np.linspace(25.8, 26.8, 201)
-            lon_r = np.linspace(-82.3, -81.3, 201)
+    with tab1:
+        st.subheader("Loss by Building Type")
+        plot_df = loss_df[loss_df['building_type'] != 'Total'].copy()
 
-        lon_g, lat_g = np.meshgrid(lon_r, lat_r)
-        r = np.sqrt((lat_g-26.55)**2 + (lon_g-(-81.95))**2)
-        wind = peak * np.exp(-r * 2.5)
-        wind = np.clip(wind, 0, peak)
-
-        fig = go.Figure(go.Heatmap(
-            z=wind, x=lon_r, y=lat_r,
-            colorscale='RdYlGn_r',
-            zmin=0, zmax=180,
-            colorbar=dict(title='mph', len=0.8)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            name='Holland loss',
+            x=plot_df['building_type'],
+            y=plot_df['loss_hol_b'],
+            marker_color='#E8593C',
+            text=plot_df['loss_hol_b'].apply(lambda x: f'${x:.2f}B'),
+            textposition='outside'
+        ))
+        fig.add_trace(go.Bar(
+            name='cGAN loss',
+            x=plot_df['building_type'],
+            y=plot_df['loss_cgan_b'],
+            marker_color='#3B8BD4',
+            text=plot_df['loss_cgan_b'].apply(lambda x: f'${x:.2f}B'),
+            textposition='outside'
         ))
         fig.update_layout(
-            title=title,
-            xaxis_title='Longitude',
-            yaxis_title='Latitude',
-            height=380,
-            margin=dict(l=0,r=0,t=40,b=0)
+            barmode='group',
+            title='Estimated loss by building type — Holland vs cGAN ($B)',
+            yaxis_title='Loss ($B)',
+            xaxis_title='Building Type',
+            height=450
         )
-        return fig
+        st.plotly_chart(fig, use_container_width=True)
 
-    # Blend between coarse and fine
-    blend_pct = blend / 100
-    peak_blend = 158.7 * (1-blend_pct) + 158.6 * blend_pct
+        st.dataframe(
+            loss_df.style.format({
+                'tiv_b'        : '${:.2f}B',
+                'mdr_hol_pct'  : '{:.1f}%',
+                'mdr_cgan_pct' : '{:.1f}%',
+                'loss_hol_b'   : '${:.2f}B',
+                'loss_cgan_b'  : '${:.2f}B',
+            }),
+            hide_index=True,
+            use_container_width=True
+        )
 
-    with col1:
-        fig_coarse = make_wind_map('coarse',
-            f'Holland Coarse 0.05° — Peak: 158.7 mph<br>'
-            f'<sup>Blocky 5.5km resolution</sup>', 158.7)
-        st.plotly_chart(fig_coarse, use_container_width=True)
+    with tab2:
+        st.subheader("Why Small Wind Change = Large Financial Impact")
+        st.markdown(
+            "Hurricane damage scales **nonlinearly** with wind speed — "
+            "approximately as V³ near Cat 4 intensities."
+        )
 
-    with col2:
-        res = 'fine' if blend > 30 else 'coarse'
-        label = 'cGAN Output' if blend > 30 else 'Holland Coarse'
-        fig_cgan = make_wind_map(res,
-            f'{label} — Peak: {peak_blend:.1f} mph<br>'
-            f'<sup>{"Smooth 500m cGAN" if blend>30 else "Drag slider →"}</sup>',
-            peak_blend)
-        st.plotly_chart(fig_cgan, use_container_width=True)
+        wind_range = np.linspace(80, 200, 300)
+        tiv        = 50.23e9
 
-    # Wind distribution comparison
-    st.markdown('<div class="section-header">Wind Distribution Shift — Holland vs cGAN (221 Land Tracts)</div>',
-                unsafe_allow_html=True)
+        fig = make_subplots(
+            rows=1, cols=2,
+            subplot_titles=[
+                'Vulnerability curve (damage ratio vs wind)',
+                'Loss amplification on $50.23B portfolio'
+            ]
+        )
 
+        for exp, name, color in [
+            (2.0, 'Quadratic (V²)', '#3B8BD4'),
+            (3.0, 'Cubic (V³) — typical', '#E8593C'),
+            (4.0, 'Quartic (V⁴)', '#EF9F27'),
+        ]:
+            dr = np.minimum(1.0, (wind_range / 100) ** exp * 0.15)
+            fig.add_trace(
+                go.Scatter(x=wind_range, y=dr * 100,
+                           name=name, line=dict(color=color, width=2)),
+                row=1, col=1
+            )
+
+        # Vertical lines for your values
+        for v, label, color in [
+            (190.3, 'cGAN (190.3)', '#1D9E75'),
+            (195.0, 'Holland (195.0)', '#E8593C'),
+        ]:
+            for col_n in [1, 2]:
+                fig.add_vline(
+                    x=v, line_dash='dash', line_color=color,
+                    annotation_text=label,
+                    annotation_position='top',
+                    row=1, col=col_n
+                )
+
+        # Loss curve
+        loss_curve = np.minimum(1.0, (wind_range / 100) ** 3 * 0.15) * tiv / 1e9
+        fig.add_trace(
+            go.Scatter(x=wind_range, y=loss_curve,
+                       name='Loss ($B)', line=dict(color='#E8593C', width=2.5),
+                       showlegend=False),
+            row=1, col=2
+        )
+
+        fig.update_xaxes(title_text='Wind speed (mph)')
+        fig.update_yaxes(title_text='Damage ratio (%)', row=1, col=1)
+        fig.update_yaxes(title_text='Loss ($B)', row=1, col=2)
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.info(
+            "**Key insight:** A 4.7 mph wind reduction (2.4%) produces "
+            "~$1.1B loss reduction (3.9%) — 1.6× amplification "
+            "from the cubic damage function + $50.23B exposure scale."
+        )
+
+    with tab3:
+        col1, col2 = st.columns(2)
+        with col1:
+            show_image(
+                f'{CGAN_DIR}/holland_vs_cgan_loss_comparison.png',
+                caption='Holland vs cGAN loss comparison'
+            )
+        with col2:
+            show_image(
+                f'{CGAN_DIR}/wind_exposure_overlay.png',
+                caption='Wind field and exposure overlay'
+            )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 6 — MODEL TRAINING
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "📊 Model Training":
+    st.title("📊 cGAN Training — Balanced Dataset")
+
+    loss_df = load_training_loss()
+
+    if loss_df is not None:
+        best_epoch = loss_df['val_loss'].idxmin() + 1
+        best_val   = loss_df['val_loss'].min()
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total Epochs",     str(len(loss_df)))
+        c2.metric("Best Epoch",       str(best_epoch))
+        c3.metric("Best Val Loss",    f"{best_val:.4f}")
+        c4.metric("Final G Loss",     f"{loss_df['g_loss'].iloc[-1]:.4f}")
+
+        st.divider()
+
+        # Training curves
+        fig = make_subplots(
+            rows=1, cols=2,
+            subplot_titles=['Adversarial training loss', 'Validation loss']
+        )
+        fig.add_trace(
+            go.Scatter(x=loss_df['epoch'], y=loss_df['g_loss'],
+                       name='Generator', line=dict(color='#E8593C', width=2)),
+            row=1, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=loss_df['epoch'], y=loss_df['d_loss'],
+                       name='Discriminator', line=dict(color='#3B8BD4', width=2)),
+            row=1, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=loss_df['epoch'], y=loss_df['val_loss'],
+                       name='Validation loss', line=dict(color='#1D9E75', width=2)),
+            row=1, col=2
+        )
+        fig.add_hline(
+            y=best_val, line_dash='dash', line_color='red',
+            annotation_text=f'Best: {best_val:.4f} (ep {best_epoch})',
+            row=1, col=2
+        )
+        fig.update_xaxes(title_text='Epoch')
+        fig.update_yaxes(title_text='Loss', row=1, col=1)
+        fig.update_yaxes(title_text='Val loss', row=1, col=2)
+        fig.update_layout(
+            height=400,
+            title='cGAN Training — Balanced Dataset (100 epochs)'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Raw data
+        with st.expander("View raw training data"):
+            st.dataframe(
+                loss_df.style.format({
+                    'g_loss'   : '{:.4f}',
+                    'd_loss'   : '{:.4f}',
+                    'val_loss' : '{:.4f}',
+                }).highlight_min(subset=['val_loss'], color='#E1F5EE'),
+                hide_index=True,
+                use_container_width=True
+            )
+    else:
+        st.error("Training loss CSV not found.")
+
+    st.divider()
+    st.subheader("Architecture Summary")
     col1, col2 = st.columns(2)
-    with col1:
-        fig5 = go.Figure()
-        fig5.add_trace(go.Bar(
-            x=wind_dist_df['wind_bin'],
-            y=wind_dist_df['tracts_hol'],
-            name='Holland', marker_color='#1565C0',
-            text=wind_dist_df['tracts_hol'],
-            textposition='outside'
-        ))
-        fig5.add_trace(go.Bar(
-            x=wind_dist_df['wind_bin'],
-            y=wind_dist_df['tracts_cgan'],
-            name='cGAN', marker_color='#FF6F00',
-            text=wind_dist_df['tracts_cgan'],
-            textposition='outside'
-        ))
-        fig5.update_layout(
-            title='Number of Tracts per Wind Category',
-            barmode='group', height=320,
-            xaxis_title='Peak gust (mph)',
-            yaxis_title='Number of tracts',
-            margin=dict(l=0,r=0,t=40,b=0),
-            legend=dict(orientation='h', y=1.1)
-        )
-        st.plotly_chart(fig5, use_container_width=True)
 
-    with col2:
-        fig6 = go.Figure()
-        fig6.add_trace(go.Bar(
-            x=wind_dist_df['wind_bin'],
-            y=wind_dist_df['TIV_hol_B'],
-            name='Holland', marker_color='#1565C0',
-            text=[f'${v:.1f}B' for v in wind_dist_df['TIV_hol_B']],
-            textposition='outside'
-        ))
-        fig6.add_trace(go.Bar(
-            x=wind_dist_df['wind_bin'],
-            y=wind_dist_df['TIV_cgan_B'],
-            name='cGAN', marker_color='#FF6F00',
-            text=[f'${v:.1f}B' for v in wind_dist_df['TIV_cgan_B']],
-            textposition='outside'
-        ))
-        fig6.update_layout(
-            title='TIV at Risk per Wind Category ($B)',
-            barmode='group', height=320,
-            xaxis_title='Peak gust (mph)',
-            yaxis_title='TIV ($B)',
-            margin=dict(l=0,r=0,t=40,b=0),
-            legend=dict(orientation='h', y=1.1)
-        )
-        st.plotly_chart(fig6, use_container_width=True)
-
-    st.markdown("""
-    <div class="highlight-box">
-    <b>Key Finding:</b> cGAN reclassifies <b>15 coastal tracts</b> from the 140-150 mph
-    category to the 150-160 mph category — revealing <b>$431M in additional TIV</b>
-    in the highest wind zone that Holland's 5.5km resolution misses.
-    </div>
-    """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════
-# TAB 4 — LOSS ANALYSIS
-# ══════════════════════════════════════════════════════════
-with tab4:
-    st.markdown('<div class="section-header">Module 3+4 — Vulnerability & Loss: HAZUS Holland vs cGAN Enhanced</div>',
-                unsafe_allow_html=True)
-
-    # Loss summary
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown('<div class="metric-card"><div class="metric-value">$18.62B</div>'
-                    '<div class="metric-label">Holland total loss<br>MDR: 57.9%</div></div>',
-                    unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="metric-card"><div class="metric-value">$18.86B</div>'
-                    '<div class="metric-label">cGAN total loss<br>MDR: 58.6%</div></div>',
-                    unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="metric-card"><div class="metric-value-accent">+$242M</div>'
-                    '<div class="metric-label">cGAN finds more<br>+1.30% difference</div></div>',
-                    unsafe_allow_html=True)
-    with col4:
-        st.markdown('<div class="metric-card"><div class="metric-value-accent">+$164M</div>'
-                    '<div class="metric-label">W1 wood frame<br>largest by MBT</div></div>',
-                    unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Wind threshold slider
-    st.markdown("### 🎚️ Wind Threshold Analysis")
-    st.markdown("Drag to see how much TIV and loss is above each wind speed threshold:")
-
-    threshold = st.slider("Wind speed threshold (mph)", 110, 160, 140, 5)
-
-    thresh_data = {
-        110: (221, 33.16, 19.2),
-        115: (218, 33.0,  19.0),
-        120: (208, 29.2,  17.1),
-        125: (205, 27.8,  16.3),
-        130: (208, 29.7,  17.5),
-        135: (204, 26.3,  15.5),
-        140: (180, 22.4,  13.2),
-        145: (155, 18.6,  11.0),
-        150: (85,   8.2,   4.9),
-        155: (20,   2.1,   1.3),
-        160: (0,    0.0,   0.0),
-    }
-    t_tracts, t_tiv, t_loss = thresh_data.get(threshold, (0,0,0))
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Tracts above threshold", t_tracts,
-              f"of 221 ({t_tracts/221*100:.0f}%)")
-    c2.metric("TIV at risk", f"${t_tiv}B",
-              f"{t_tiv/33.16*100:.0f}% of total")
-    c3.metric("Expected loss", f"${t_loss}B",
-              f"MDR ~{t_loss/t_tiv*100:.0f}%" if t_tiv > 0 else "")
-
-    # Loss by MBT
-    col1, col2 = st.columns(2)
-    with col1:
-        fig7 = go.Figure()
-        fig7.add_trace(go.Bar(
-            y=loss_mbt_df['MBT_name'],
-            x=loss_mbt_df['hol_B'],
-            name='Holland', orientation='h',
-            marker_color='#1565C0',
-            text=[f'${v:.3f}B' for v in loss_mbt_df['hol_B']],
-            textposition='outside'
-        ))
-        fig7.add_trace(go.Bar(
-            y=loss_mbt_df['MBT_name'],
-            x=loss_mbt_df['cgan_B'],
-            name='cGAN', orientation='h',
-            marker_color='#FF6F00',
-            text=[f'${v:.3f}B' for v in loss_mbt_df['cgan_B']],
-            textposition='outside'
-        ))
-        fig7.update_layout(
-            title='Expected Loss by Building Type ($B)',
-            barmode='group', height=350,
-            xaxis_title='Expected loss ($B)',
-            margin=dict(l=0,r=0,t=40,b=0),
-            legend=dict(orientation='h', y=1.1)
-        )
-        st.plotly_chart(fig7, use_container_width=True)
-
-    with col2:
-        # Loss difference table
-        st.markdown("**Loss Comparison Table**")
-        display_df = loss_mbt_df[['MBT','MBT_name',
-                                   'hol_B','cgan_B','diff_M']].copy()
-        display_df.columns = ['MBT','Building Type',
-                               'Holland ($B)','cGAN ($B)','Diff ($M)']
-        st.dataframe(display_df, hide_index=True,
-                     use_container_width=True)
-
-        # Total row
-        st.markdown("""
-        <div class="highlight-box">
-        <table style="width:100%;font-size:13px;">
-        <tr><td><b>TOTAL</b></td>
-        <td><b>$18.620B</b></td>
-        <td><b>$18.863B</b></td>
-        <td style="color:#FF6F00"><b>+$242.3M</b></td></tr>
-        </table>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # MDR comparison
-        fig8 = go.Figure(go.Bar(
-            x=loss_mbt_df['MBT'],
-            y=loss_mbt_df['diff_M'],
-            marker_color=['#2E7D32' if v > 0 else '#C62828'
-                          for v in loss_mbt_df['diff_M']],
-            text=[f'+${v}M' for v in loss_mbt_df['diff_M']],
-            textposition='outside'
-        ))
-        fig8.update_layout(
-            title='Loss Difference cGAN - Holland ($M)',
-            height=260, margin=dict(l=0,r=0,t=40,b=0),
-            yaxis_title='Difference ($M)'
-        )
-        st.plotly_chart(fig8, use_container_width=True)
-
-    # Industry application
-    st.markdown("### 💼 Reinsurance Pricing Impact")
-    col1, col2 = st.columns(2)
-    with col1:
-        attach = st.number_input(
-            "Attachment point ($M)", 50, 500, 100, 50)
-        limit  = st.number_input(
-            "Layer limit ($M)", 50, 500, 200, 50)
-
-    with col2:
-        gml_hol  = max(0, 18620-attach) * 0.0024
-        gml_cgan = max(0, 18863-attach) * 0.0024
-        premium_hol  = gml_hol  * 1.20
-        premium_cgan = gml_cgan * 1.20
-        st.markdown(f"""
-        <div class="warning-box">
-        <b>Layer: ${attach}M xs ${attach}M</b><br><br>
-        Holland GML  : <b>${gml_hol:.1f}M</b> → Premium: ${premium_hol:.1f}M<br>
-        cGAN GML     : <b>${gml_cgan:.1f}M</b> → Premium: ${premium_cgan:.1f}M<br>
-        Pricing gap  : <b style="color:#FF6F00">${premium_cgan-premium_hol:.1f}M/year</b>
-        <br><br>
-        <small>Holland <b>underprices</b> this layer by
-        ${premium_cgan-premium_hol:.1f}M annually</small>
-        </div>""", unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════
-# TAB 5 — TRAINING
-# ══════════════════════════════════════════════════════════
-with tab5:
-    st.markdown('<div class="section-header">cGAN Training — 100 Epochs | 2,500 Balanced Pairs | GPU</div>',
-                unsafe_allow_html=True)
-
-    c1,c2,c3,c4 = st.columns(4)
-    with c1:
-        st.markdown('<div class="metric-card"><div class="metric-value">2,500</div>'
-                    '<div class="metric-label">Training pairs<br>500 per Cat1-5</div></div>',
-                    unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="metric-card"><div class="metric-value">61 / 100</div>'
-                    '<div class="metric-label">Best epoch<br>val loss: 0.0050</div></div>',
-                    unsafe_allow_html=True)
-    with c3:
-        st.markdown('<div class="metric-card"><div class="metric-value">95%</div>'
-                    '<div class="metric-label">Val loss reduction<br>0.1546 → 0.0050</div></div>',
-                    unsafe_allow_html=True)
-    with c4:
-        st.markdown('<div class="metric-card"><div class="metric-value-accent">+20 mph</div>'
-                    '<div class="metric-label">Peak improvement<br>138 → 158.6 mph</div></div>',
-                    unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Training loss curves
-    col1, col2 = st.columns(2)
-    with col1:
-        fig9 = make_subplots(specs=[[{"secondary_y": True}]])
-        fig9.add_trace(go.Scatter(
-            x=training_df['epoch'], y=training_df['g_loss'],
-            name='G loss', line=dict(color='#1565C0', width=2),
-            mode='lines'
-        ), secondary_y=False)
-        fig9.add_trace(go.Scatter(
-            x=training_df['epoch'], y=training_df['val_loss'],
-            name='Val loss', line=dict(color='#FF6F00', width=2,
-                                       dash='dash'),
-            mode='lines'
-        ), secondary_y=True)
-        fig9.add_vline(x=61, line_dash='dot', line_color='green',
-                       annotation_text='Best (ep61)',
-                       annotation_font_color='green')
-        fig9.update_layout(
-            title='Training Loss Curves — 100 Epochs',
-            height=350, margin=dict(l=0,r=0,t=40,b=0),
-            legend=dict(orientation='h', y=1.1)
-        )
-        fig9.update_yaxes(title_text='G loss', secondary_y=False)
-        fig9.update_yaxes(title_text='Val loss', secondary_y=True)
-        st.plotly_chart(fig9, use_container_width=True)
-
-    with col2:
-        # Cat distribution
-        cat_data = pd.DataFrame({
-            'Category': ['Cat1\n64-83kt','Cat2\n83-96kt',
-                         'Cat3\n96-113kt','Cat4\n113-137kt',
-                         'Cat5\n137-165kt'],
-            'Count': [500, 500, 500, 500, 500],
-            'Color': ['#B5D4F4','#85B7EB','#1565C0',
-                      '#0A3D8F','#FF6F00']
-        })
-        fig10 = px.bar(
-            cat_data, x='Category', y='Count',
-            color='Category',
-            color_discrete_sequence=cat_data['Color'].tolist(),
-            title='Balanced Training Data Distribution',
-            height=350,
-            text='Count'
-        )
-        fig10.update_traces(textposition='outside')
-        fig10.update_layout(
-            showlegend=False,
-            margin=dict(l=0,r=0,t=40,b=0),
-            yaxis_title='Training pairs',
-            yaxis_range=[0, 600]
-        )
-        st.plotly_chart(fig10, use_container_width=True)
-
-    # Model architecture
-    st.markdown('<div class="section-header">Model Architecture — Pix2Pix cGAN</div>',
-                unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("""
-        **Generator (U-Net)**
-        - Input: coarse wind (22×21) + condition (4,)
-        - Encoder: 3 conv layers → 512 channels
-        - Decoder: 3 conv layers with skip connections
-        - Output: fine wind (201×201)
-        - Parameters: 3.9M
-        - Activation: Sigmoid (final)
-        """)
-    with col2:
-        st.markdown("""
-        **Discriminator (PatchGAN)**
-        - Input: coarse + fine wind (2 channels)
-        - 5 conv layers with stride 2
-        - Output: 23×23 patch scores
-        - Parameters: 2.76M
-        - Each score = 70×70 receptive field
-        - No sigmoid (BCEWithLogitsLoss)
-        """)
-    with col3:
-        st.markdown("""
-        **Training Setup**
-        - Loss: BCEWithLogitsLoss + L1×100
-        - Optimizer: Adam lr=2×10⁻⁵, β₁=0.5
-        - Gradient clipping: max_norm=1.0
-        - Batch size: 16
-        - Device: CUDA GPU
-        - Best epoch: 61 / 100
+        **Generator — U-Net**
+        ```
+        Input  : coarse wind patch (1, 22, 21)
+                 + condition vector (4,)
+        enc1   : Conv2d(2, 64)   LeakyReLU
+        enc2   : Conv2d(64, 128) BN LeakyReLU
+        enc3   : Conv2d(128, 256) BN LeakyReLU
+        bttnck : Conv2d(256, 512) BN ReLU
+        dec3   : Conv2d(768, 256) BN ReLU Dropout
+        dec2   : Conv2d(384, 128) BN ReLU Dropout
+        dec1   : Conv2d(192, 64)  BN ReLU
+        up     : Upsample → (201, 201) Sigmoid
+        Output : fine wind patch (1, 201, 201)
+        ```
         """)
 
-    # Comparison table
-    st.markdown('<div class="section-header">Imbalanced vs Balanced Training — Comparison</div>',
-                unsafe_allow_html=True)
-    comp_df = pd.DataFrame({
-        'Metric':       ['Training pairs','Val loss','Peak wind (mph)',
-                         'MAE (mph)','Correlation','MDR diff'],
-        'Imbalanced':   ['347','0.0131','138.3','9.77','0.9460','-'],
-        'Balanced':     ['2,500','0.0050','158.6','1.48','0.9965','+0.7%'],
-        'Improvement':  ['7× more data','62% better','+20.3 mph',
-                         '85% better','+5.3%','More accurate'],
-    })
-    st.dataframe(comp_df, hide_index=True, use_container_width=True)
+    with col2:
+        st.markdown("""
+        **Discriminator — PatchGAN**
+        ```
+        Judges 70×70 patches as real/fake
+        Forces local texture realism
+        Condition vector injected at input
+        ```
 
-    st.markdown("""
-    <div class="highlight-box">
-    <b>Key insight:</b> Balanced training data with 500 storms per category
-    (Cat1-Cat5) was the critical improvement — it enabled the cGAN to learn
-    extreme Cat4-5 wind patterns, achieving near-perfect peak wind prediction
-    (158.6 vs 158.7 mph Holland reference) compared to 138.3 mph with
-    imbalanced historical data.
-    </div>
-    """, unsafe_allow_html=True)
+        **Loss Functions**
+        ```
+        L_adv  : Generator vs discriminator
+        L_L1   : Pixel-level MAE loss
+        L_phys : Peak location + decay
+        ```
 
-# ── Sidebar ───────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🌀 Project Info")
-    st.markdown("""
-    **Course:** CAT-402 + CSC-498  
-    **Event:** Hurricane Ian 2022  
-    **Study area:** Lee County, FL  
-    **FIPS:** 12071  
-    """)
-    st.markdown("---")
-    st.markdown("### 📊 Key Results")
-    st.metric("cGAN Correlation", "0.9965")
-    st.metric("MAE", "1.48 mph")
-    st.metric("Extra loss found", "+$242M", "+1.30%")
-    st.metric("Tracts reclassified", "+15")
-    st.markdown("---")
-    st.markdown("### 🏗️ Architecture")
-    st.markdown("""
-    - **Generator:** U-Net (3.9M params)
-    - **Discriminator:** PatchGAN (2.76M)
-    - **Framework:** Pix2Pix
-    - **Training:** 100 epochs / GPU
-    - **Best epoch:** 61
-    - **Val loss:** 0.0050
-    """)
-    st.markdown("---")
-    st.markdown("### 📚 References")
-    st.markdown("""
-    - Holland (1980) MWR
-    - Isola et al. (2017) CVPR
-    - Stengel et al. (2020) PNAS
-    - FEMA HAZUS (2012)
-    - IBTrACS v04r00
-    """)
-    st.markdown("---")
-    st.caption("CSC-498 | Lehigh University | Spring 2026")
+        **Training Config**
+        ```
+        Optimizer : Adam (lr=2e-4, β=0.5)
+        Batch size: 32
+        Epochs    : 100
+        Dataset   : 2,500 balanced samples
+        ```
+        """)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 7 — PEER REVIEW DEFENSE
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "🛡 Peer Review Defense":
+    st.title("🛡 Peer Review — Q&A Defense")
+    st.markdown(
+        "Complete answers to all peer review questions — "
+        "backed by real validation numbers from this project."
+    )
+
+    questions = [
+        {
+            "q"       : "How does your cGAN ensure physically realistic coastal wind gradients?",
+            "answer"  : "Physical realism comes from four layers: (1) physics conditioning on Vmax/RMW/Pmin/Lat, (2) Holland model as structural prior, (3) coastal gradient patterns implicitly learned from training data, (4) post-generation validation. However, conditioning collapse means the model relies primarily on the coarse input — a known limitation.",
+            "evidence": "r=0.974 vs Holland fine, 0.6% peak error, wind decay confirmed",
+            "confidence": "Medium — Holland consistency confirmed, real atmosphere not validated",
+            "fix"     : "Validate against ASOS stations. Replace Holland fine with HWind/ERA5 as ground truth.",
+            "color"   : "warning"
+        },
+        {
+            "q"       : "What input features have the biggest impact on generated results?",
+            "answer"  : "None of the four conditioning features have meaningful impact. All show < 0.1 mph variation across ±30% perturbation — confirmed as numerical noise. This is conditioning collapse: the coarse wind field encodes all intensity information, making the condition vector redundant.",
+            "evidence": "Zero condition → 190.5 mph, Normal → 190.3 mph, Ones → 190.3 mph. All 4 features: < 0.1 mph variation (0.05% of output).",
+            "confidence": "High — definitively confirmed by zero/ones test",
+            "fix"     : "Multi-depth condition injection at bottleneck + decoder. Add conditioning loss term during training.",
+            "color"   : "error"
+        },
+        {
+            "q"       : "How accurate are generated scenarios vs real historical data?",
+            "answer"  : "Against Holland fine reference: r=0.974 and 0.6% peak error — excellent. Against real atmosphere: unknown — no ASOS or HWind validation performed. The r=0.974 proves Holland consistency, not atmospheric accuracy.",
+            "evidence": "Peak wind: 189.2 mph input vs 190.3 mph output. MAE = 1.99 mph vs 1.78 mph baseline.",
+            "confidence": "High vs Holland, Unknown vs real atmosphere",
+            "fix"     : "Compare output to NOAA ASOS stations at KFMY, KPGD, KAPF during Ian landfall.",
+            "color"   : "warning"
+        },
+        {
+            "q"       : "How do you confirm the cGAN produced conditioned output?",
+            "answer"  : "We ran a definitive test: passed zero vector, normal vector, and ones vector as conditions. All three produced identical outputs (~190.3 mph). This confirms conditioning collapse — the generator ignores the condition vector entirely.",
+            "evidence": "Normal: 190.3 mph. Zero: 190.5 mph. Ones: 190.3 mph. Difference: 0.2 mph = numerical noise.",
+            "confidence": "High — conditioning collapse definitively confirmed",
+            "fix"     : "Inject condition at bottleneck + decoder layers. Add auxiliary conditioning loss.",
+            "color"   : "error"
+        },
+        {
+            "q"       : "How does the cGAN learn a distribution from a single event?",
+            "answer"  : "It does not truly learn a distribution. Training data audit revealed all 2,500 samples at exactly 26.3°N (Ian's landfall). Vmax/RMW/Pmin vary synthetically but geography is fixed. Model learned coarse→fine mapping for one location, not a general hurricane distribution.",
+            "evidence": "Latitude unique values: 1. Latitude std dev: 0.000000. All samples: 26.3°N.",
+            "confidence": "High — confirmed by training data audit",
+            "fix"     : "Train on full IBTrACS Gulf database (317 storms) across all latitudes 18°N–32°N.",
+            "color"   : "error"
+        },
+        {
+            "q"       : "How do you handle climate non-stationarity?",
+            "answer"  : "Currently not handled — model assumes stationarity. Three vulnerabilities: (1) future Vmax may exceed training max of 165 kt under SSP5-8.5, (2) poleward track shifts of 2–4° are outside training latitude of 26.3°N, (3) no SST feature so cannot condition on warmer oceans.",
+            "evidence": "Training max Vmax: 165 kt. IPCC projects +5–10%. Training latitude: 26.3°N only.",
+            "confidence": "This is a known limitation — shared by most academic cat models",
+            "fix"     : "Add SST as 5th conditioning feature. Periodic retraining on rolling 30-year IBTrACS window.",
+            "color"   : "warning"
+        },
+        {
+            "q"       : "What validation is needed for regulatory adoption?",
+            "answer"  : "Five layers required: (1) backtest on 10+ historical storms, (2) benchmark against AIR/RMS, (3) independent actuary review, (4) uncertainty quantification via Monte Carlo, (5) FCHLPM 64-point checklist compliance. Currently only validated on Ian — insufficient for regulatory use.",
+            "evidence": "Florida statute 627.0628 requires FCHLPM review. Commercial models take 3–5 years to certify.",
+            "confidence": "Not ready for regulatory use in current form",
+            "fix"     : "Full FCHLPM submission process. Engage certified actuary (FCAS).",
+            "color"   : "warning"
+        },
+        {
+            "q"       : "Why is the error small but financial impact large?",
+            "answer"  : "Three reasons: (1) damage scales as V³ near Cat 4 — 2.4% wind reduction produces 7.1% damage ratio reduction, (2) at 190+ mph we are on the steepest part of the vulnerability curve, (3) on $50.23B TIV even 1% damage ratio change = $500M. Combined: 4.7 mph improvement → $1.1B loss difference.",
+            "evidence": "4.7 mph wind difference → $28.29B vs $27.19B = $1.10B loss difference.",
+            "confidence": "High — well-established in insurance literature",
+            "fix"     : "N/A — this is a feature, not a limitation.",
+            "color"   : "success"
+        },
+        {
+            "q"       : "Is the cGAN learning real coastal physics or Holland's assumptions?",
+            "answer"  : "Holland's assumptions at higher resolution — not real coastal physics. Ground truth was Holland fine (same parametric equation, finer grid). r=0.974 confirms Holland reproduction. To claim real physics we would need HWind/ERA5 as ground truth.",
+            "evidence": "Training: Holland coarse → Holland fine. Both from same equation. No observational data used.",
+            "confidence": "Low for real physics, High for Holland consistency",
+            "fix"     : "Replace Holland fine with NOAA HWind analysis or ERA5 reanalysis as training target.",
+            "color"   : "error"
+        },
+    ]
+
+    for i, item in enumerate(questions, 1):
+        with st.expander(f"Q{i}: {item['q']}"):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.markdown(f"**Answer:** {item['answer']}")
+                st.markdown(f"**Evidence:** `{item['evidence']}`")
+                if item['color'] == 'success':
+                    st.success(f"**Fix / Next step:** {item['fix']}")
+                elif item['color'] == 'error':
+                    st.error(f"**Fix / Next step:** {item['fix']}")
+                else:
+                    st.warning(f"**Fix / Next step:** {item['fix']}")
+            with col2:
+                conf_colors = {
+                    'success' : '🟢',
+                    'warning' : '🟡',
+                    'error'   : '🔴'
+                }
+                st.markdown(f"**Confidence:** {conf_colors[item['color']]}")
+                st.markdown(f"_{item['confidence']}_")
+
+    st.divider()
+    st.subheader("Overall Project Assessment")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.success("""
+        **Strengths**
+        - r=0.974 super-resolution accuracy
+        - 0.6% peak wind error
+        - Rigorous validation performed
+        - Honest limitation disclosure
+        - Conditioning collapse diagnosed
+        - Training data audit completed
+        """)
+    with col2:
+        st.error("""
+        **Limitations**
+        - Conditioning collapse — features ignored
+        - Circular ground truth (Holland→Holland)
+        - Single location (26.3°N only)
+        - No ASOS/HWind validation
+        - Climate non-stationarity not modeled
+        - One event (Ian) — not regulatory grade
+        """)
