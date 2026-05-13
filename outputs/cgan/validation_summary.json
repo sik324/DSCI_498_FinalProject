@@ -1,0 +1,51 @@
+{
+  "model": "generator_balanced_best.pth",
+  "epoch": 61,
+  "val_loss": 0.005,
+  "peak_wind_error_pct": 0.6,
+  "spatial_correlation": 0.9742,
+  "mae_cgan_mph": 1.99,
+  "mae_baseline_mph": 1.78,
+  "resolution_in": "22x21",
+  "resolution_out": "201x201",
+  "conditioning_collapse": true,
+  "features_responsive": [],
+  "features_ignored": [
+    "Vmax",
+    "RMW",
+    "Pmin",
+    "Latitude"
+  ],
+  "model_type_actual": "Physics-guided super-resolution",
+  "model_type_intended": "Conditional GAN",
+  "proposed_fixes": [
+    "Multi-depth condition injection",
+    "Conditioning loss term",
+    "Intensity-stripped spatial training",
+    "Bottleneck + decoder injection"
+  ],
+  "feature_sensitivity": {
+    "Vmax": {
+      "std_mph": 0.0,
+      "pct_of_output": 0.0,
+      "verdict": "noise"
+    },
+    "RMW": {
+      "std_mph": 0.0,
+      "pct_of_output": 0.0,
+      "verdict": "noise"
+    },
+    "Pmin": {
+      "std_mph": 0.1,
+      "pct_of_output": 0.05,
+      "verdict": "noise"
+    },
+    "Latitude": {
+      "std_mph": 0.1,
+      "pct_of_output": 0.05,
+      "verdict": "noise"
+    },
+    "threshold": "Any variation < 2 mph on 190 mph output = numerical noise",
+    "conclusion": "Conditioning collapse confirmed \u2014 all features ignored"
+  }
+}
