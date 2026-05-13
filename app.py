@@ -1,6 +1,6 @@
 """
 Hurricane Ian Catastrophe Model — Streamlit Dashboard
-CAT-402 + CSC-498 Final Project | Lehigh University | Spring 2026
+Hurricane Catastrophe Modeling with Generative AI Enhancement
 GitHub: sik324/DSCI_498_FinalProject
 """
 
@@ -39,9 +39,12 @@ VULN_DIR  = f'{OUTPUTS_DIR}/vulnerability'
 # ── Helper: safe image loader ─────────────────────────────────────────────────
 def show_image(path, caption='', width=None):
     if os.path.exists(path):
-        st.image(path, caption=caption, use_column_width=(width is None))
+        if width:
+            st.image(path, caption=caption, width=width)
+        else:
+            st.image(path, caption=caption, use_column_width=True)
     else:
-        st.info(f"Image not found: {path}")
+        st.warning(f"⚠ Image not found — check outputs/cgan/ folder: {os.path.basename(path)}")
 
 # ── Load functions (cached) ───────────────────────────────────────────────────
 @st.cache_data
@@ -151,7 +154,7 @@ st.sidebar.image(
 )  # invisible spacer
 st.sidebar.title("🌀 Hurricane Ian")
 st.sidebar.markdown("**Catastrophe Model Dashboard**")
-st.sidebar.markdown("CAT-402 + CSC-498 | Lehigh University")
+st.sidebar.markdown("Catastrophe Modeling + Generative AI | Lehigh University")
 st.sidebar.divider()
 
 page = st.sidebar.radio(
@@ -162,7 +165,7 @@ page = st.sidebar.radio(
      "🤖 cGAN Results",
      "💰 Loss Analysis",
      "📊 Model Training",
-     "🛡 Peer Review Defense"]
+     "🛡 Model Validation & Defense"]
 )
 
 st.sidebar.divider()
@@ -246,8 +249,8 @@ if page == "🏠 Overview":
         st.dataframe(results, hide_index=True, use_container_width=True)
 
         st.subheader("Courses")
-        st.info("**CAT-402** — Hazard + Exposure + Vulnerability + Loss modules")
-        st.success("**CSC-498** — cGAN super-resolution + validation + peer review")
+        st.info("**Catastrophe Modeling** — Hazard + Exposure + Vulnerability + Loss")
+        st.success("**Generative AI Enhancement** — cGAN super-resolution + validation")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 2 — HAZARD MODULE
@@ -840,11 +843,10 @@ elif page == "📊 Model Training":
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 7 — PEER REVIEW DEFENSE
 # ══════════════════════════════════════════════════════════════════════════════
-elif page == "🛡 Peer Review Defense":
-    st.title("🛡 Peer Review — Q&A Defense")
+elif page == "🛡 Model Validation & Defense":
+    st.title("🛡 Model Validation & Defense")
     st.markdown(
-        "Complete answers to all peer review questions — "
-        "backed by real validation numbers from this project."
+        "Rigorous quantitative validation of the cGAN super-resolution model with documented findings and improvement roadmap."
     )
 
     questions = [
