@@ -1,0 +1,6 @@
+Damage State,Buildings,Percentage
+DS0 No damage,10926,3.5
+DS1 Slight,27526,8.8
+DS2 Moderate,49898,16.0
+DS3 Extensive,65352,21.0
+DS4 Complete,157761,50.7
