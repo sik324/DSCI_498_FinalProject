@@ -289,46 +289,47 @@ elif page == "🌪 Hazard Module":
     tab1, tab2, tab3 = st.tabs(["Wind Field Maps", "Storm Track", "Methodology"])
 
     with tab1:
-        st.subheader("Wind Field Comparison")
-        show_image(
-            f'{CGAN_DIR}/wind_field_comparison_balanced.png',
-            caption='Left: Holland coarse (0.05°) | Centre: cGAN (0.005°) | Right: Holland fine reference (0.005°)'
-        )
-        st.divider()
+        st.subheader("Lee County Wind Field")
         col1, col2 = st.columns(2)
         with col1:
             show_image(
-                f'{CGAN_DIR}/holland_vs_cgan_land_comparison.png',
-                caption='Holland vs cGAN — Lee County land area'
+                f'{HAZ_DIR}/ian_lee_wind_map.png',
+                caption='Peak 3-s gust — Lee County (mph)'
             )
         with col2:
             show_image(
-                f'{CGAN_DIR}/wind_exposure_overlay.png',
-                caption='Wind field overlaid with exposure data'
+                f'{HAZ_DIR}/ian_florida_wind_swath.png',
+                caption='Full Florida wind swath — Lee County highlighted'
             )
+        st.divider()
+        st.subheader("Peak Wind by County")
+        show_image(
+            f'{HAZ_DIR}/ian_county_wind_summary.png',
+            caption='Top 15 affected counties — red = Lee County'
+        )
+        st.divider()
+        st.subheader("Holland vs cGAN Resolution Comparison")
+        show_image(
+            f'{CGAN_DIR}/wind_field_comparison_balanced.png',
+            caption='Left: Holland coarse (0.05°) | Centre: cGAN (0.005°) | Right: Holland fine reference'
+        )
 
     with tab2:
         st.subheader("Hurricane Ian Track — Lee County Landfall")
         # Ian track points near Florida
-        ian_track = pd.DataFrame({
-            'lat' : [23.2, 24.1, 25.0, 25.9, 26.4, 26.8, 27.8, 28.8, 29.8],
-            'lon' : [-84.3,-83.5,-82.8,-82.5,-82.2,-82.0,-81.6,-81.2,-80.9],
-            'vmax': [60,   80,   100,  115,  125,  130,  110,  80,   60  ],
-            'time': ['Sep 27 00Z','Sep 27 06Z','Sep 27 12Z','Sep 27 18Z',
-                     'Sep 28 00Z','Sep 28 18Z','Sep 29 00Z','Sep 29 06Z',
-                     'Sep 29 12Z'],
-        })
+        _tp = f'{HAZ_DIR}/ian_2022_track.csv'
+        ian_track = pd.read_csv(_tp) if os.path.exists(_tp) else pd.DataFrame()
         fig = px.scatter_mapbox(
             ian_track, lat='lat', lon='lon',
-            size='vmax', color='vmax',
+            size='vmax_kt', color='vmax_kt',
             color_continuous_scale='RdYlGn_r',
             size_max=25,
             mapbox_style='carto-positron',
-            zoom=6,
-            center={'lat': 26.5, 'lon': -82.5},
-            hover_data={'time': True, 'vmax': True},
-            labels={'vmax': 'Wind (kt)', 'time': 'Time'},
-            title='Hurricane Ian track — color = intensity (kt)'
+            zoom=5,
+            center={'lat': 25.5, 'lon': -82.5},
+            hover_data={'time': True, 'vmax_kt': True, 'vmax_mph': True},
+            labels={'vmax_kt': 'Wind (kt)', 'time': 'Time'},
+            title='Hurricane Ian (2022) — IBTrACS Real Track Data'
         )
         fig.add_trace(go.Scattermapbox(
             lat=ian_track['lat'], lon=ian_track['lon'],
@@ -732,6 +733,18 @@ elif page == "💰 Loss Analysis":
         )
 
     with tab3:
+        col1, col2 = st.columns(2)
+        with col1:
+            show_image(
+                f'{LOSS_DIR}/ep_curve.png',
+                caption='Exceedance probability curve'
+            )
+        with col2:
+            show_image(
+                f'{LOSS_DIR}/loss_summary_charts.png',
+                caption='Loss summary by building type'
+            )
+        st.divider()
         col1, col2 = st.columns(2)
         with col1:
             show_image(
