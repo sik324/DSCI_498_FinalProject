@@ -398,7 +398,7 @@ elif page == "🏘 Exposure Module":
                 "lon"  : list(df["lon"]),
                 "cv"   : list(df[col]),
                 "sz"   : list(df["TIV_M"]) if "TIV_M" in df.columns else [100]*len(df),
-            })
+                "sz"   : [10]*len(df),
             fig = px.scatter_mapbox(
                 _df, lat="lat", lon="lon",
                 color="cv", size="sz",
@@ -406,7 +406,7 @@ elif page == "🏘 Exposure Module":
                 mapbox_style="carto-positron",
                 zoom=9, center={"lat":26.55,"lon":-81.80},
                 size_max=15, opacity=0.85,
-                labels={"cv":"Value","sz":"TIV ($M)"},
+                zoom=10, center={"lat":26.55,"lon":-81.80},
                 title="Lee County — Land Census Tracts"
             )
             st.plotly_chart(fig, use_container_width=True)
