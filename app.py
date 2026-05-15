@@ -410,7 +410,7 @@ elif page == "🏘 Exposure Module":
                 title="Lee County — Land Census Tracts"
             )
             fig.update_layout(height=400, margin={"r":0,"t":30,"l":0,"b":0})
-            st.plotly_chart(fig, use_column_width=True)
+            st.plotly_chart(fig, use_container_width=True)
             st.caption("200 land-only tracts | 23 water tracts excluded")
         except Exception as e:
             st.error(f"Map error: {e}")
