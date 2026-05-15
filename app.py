@@ -394,9 +394,14 @@ elif page == "🏘 Exposure Module":
                 "TIV_M":"TIV ($M)","buildings":"Buildings",
                 "wind_diff":"cGAN − Holland (mph)"}.get(x,x)
         )
-        _df = df[["lat","lon","TIV_M","buildings",color_col]].copy()
-        _df = _df.rename(columns={color_col:"color_val"})
-        _df.columns = [str(c) for c in _df.columns]
+        # Build map data safely avoiding narwhals issues
+        _vals = df[color_col].tolist()
+        _tiv  = df["TIV_M"].tolist()
+        _lats = df["lat"].tolist()
+        _lons = df["lon"].tolist()
+        import pandas as _pd
+        _df   = _pd.DataFrame({"lat":_lats,"lon":_lons,
+                               "color_val":_vals,"TIV_M":_tiv})
         fig = px.scatter_mapbox(
             _df, lat="lat", lon="lon",
             color="color_val", size="TIV_M",
