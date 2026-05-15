@@ -461,8 +461,13 @@ elif page == "🏘 Exposure Module":
 
     with tab3:
         st.subheader("Wind Speed vs TIV by Tract")
-        _sc = df[["wind_hol","TIV_M","wind_diff","buildings"]].copy()
-        _sc.columns = [str(c) for c in _sc.columns]
+        import pandas as _pd2
+        _sc = _pd2.DataFrame({
+            "wind_hol" : list(df["wind_hol"]),
+            "TIV_M"    : list(df["TIV_M"]),
+            "wind_diff": list(df["wind_diff"]),
+            "buildings": list(df["buildings"]),
+        })
         fig = px.scatter(
             _sc, x="wind_hol", y="TIV_M",
             color="wind_diff", size="buildings",
