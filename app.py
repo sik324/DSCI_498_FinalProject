@@ -632,7 +632,7 @@ elif page == "💰 Loss & Reinsurance":
             yaxis_title="Loss ($B)",
             height=400
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="loss_mbt_chart")
 
         st.dataframe(
             loss_df.rename(columns={
@@ -674,7 +674,7 @@ elif page == "💰 Loss & Reinsurance":
                 )
                 fig2.update_traces(textposition="outside")
                 fig2.update_layout(height=380)
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, use_container_width=True, key="ds_chart")
                 st.error(
                     "**50.8% of buildings reached DS4 (destruction)** — "
                     f"{int(loss_tract['bldgs_DS4'].sum()):,} buildings destroyed."
@@ -752,7 +752,7 @@ elif page == "💰 Loss & Reinsurance":
             yaxis_title="Annual Exceedance Probability (%)",
             yaxis_type="log", height=380
         )
-        st.plotly_chart(fig_ep, use_container_width=True)
+        st.plotly_chart(fig_ep, use_container_width=True, key="ep_curve")
 
         with st.expander("View EP curve data table"):
             st.dataframe(pd.DataFrame({
@@ -850,7 +850,7 @@ elif page == "💰 Loss & Reinsurance":
         )
         fig_xol.update_traces(texttemplate="%{text:.2f}B", textposition="outside")
         fig_xol.update_layout(height=380)
-        st.plotly_chart(fig_xol, use_container_width=True)
+        st.plotly_chart(fig_xol, use_container_width=True, key="xol_chart")
 
         st.divider()
 
@@ -897,7 +897,7 @@ elif page == "💰 Loss & Reinsurance":
             title=f"Quota Share — {cession_pct}% cession · {commission}% commission",
             height=380
         )
-        st.plotly_chart(fig_qs, use_container_width=True)
+        st.plotly_chart(fig_qs, use_container_width=True, key="qs_chart")
 
         st.divider()
 
@@ -988,7 +988,7 @@ Current settings retain ${insurer_retain:.2f}B under XOL vs ${qs_ins_loss:.2f}B 
             yaxis_title="Annual Exceedance Probability (%)",
             yaxis_type="log", height=380
         )
-        st.plotly_chart(fig_ep, use_container_width=True)
+        st.plotly_chart(fig_ep, use_container_width=True, key="ep_curve")
 
         with st.expander("View EP curve data table"):
             st.dataframe(pd.DataFrame({
@@ -1086,7 +1086,7 @@ Current settings retain ${insurer_retain:.2f}B under XOL vs ${qs_ins_loss:.2f}B 
         )
         fig_xol.update_traces(texttemplate="%{text:.2f}B", textposition="outside")
         fig_xol.update_layout(height=380)
-        st.plotly_chart(fig_xol, use_container_width=True)
+        st.plotly_chart(fig_xol, use_container_width=True, key="xol_chart")
 
         st.divider()
 
@@ -1133,7 +1133,7 @@ Current settings retain ${insurer_retain:.2f}B under XOL vs ${qs_ins_loss:.2f}B 
             title=f"Quota Share — {cession_pct}% cession · {commission}% commission",
             height=380
         )
-        st.plotly_chart(fig_qs, use_container_width=True)
+        st.plotly_chart(fig_qs, use_container_width=True, key="qs_chart")
 
         st.divider()
 
