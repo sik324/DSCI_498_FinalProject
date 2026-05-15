@@ -425,12 +425,6 @@ elif page == "🏘 Exposure Module":
         except Exception as e:
             st.error(f"Map error: {e}")
             st.write(f"df type: {type(df)}, columns: {list(df.columns) if hasattr(df, 'columns') else 'N/A'}")
-            size_max=15, opacity=0.85,
-            labels={"color_val":"Value","size_val":"TIV ($M)"},
-            title="Lee County — Land Census Tracts (200 land tracts)"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.caption("Showing 200 land-only tracts | 23 water tracts excluded")
 
     with tab2:
         st.subheader("HAZUS Building Type Distribution — Land Tracts")
