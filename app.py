@@ -394,19 +394,19 @@ elif page == "🏘 Exposure Module":
             col = color_col if color_col in df.columns else "wind_hol"
             import pandas as _pd
             _df = _pd.DataFrame({
-                "lat"  : list(df["lat"]),
-                "lon"  : list(df["lon"]),
-                "cv"   : list(df[col]),
-                "sz"   : list(df["TIV_M"]) if "TIV_M" in df.columns else [100]*len(df),
-                "sz"   : [10]*len(df),
+                "lat": list(df["lat"]),
+                "lon": list(df["lon"]),
+                "cv" : list(df[col]),
+                "sz" : [10]*len(df),
+            })
             fig = px.scatter_mapbox(
                 _df, lat="lat", lon="lon",
                 color="cv", size="sz",
                 color_continuous_scale="RdYlGn_r",
                 mapbox_style="carto-positron",
-                zoom=9, center={"lat":26.55,"lon":-81.80},
-                size_max=15, opacity=0.85,
                 zoom=10, center={"lat":26.55,"lon":-81.80},
+                size_max=12, opacity=0.85,
+                labels={"cv":"Value","sz":"Size"},
                 title="Lee County — Land Census Tracts"
             )
             st.plotly_chart(fig, use_container_width=True)
