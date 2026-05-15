@@ -585,11 +585,13 @@ elif page == "💰 Loss & Reinsurance":
     st.title("💰 Loss & Reinsurance Analysis")
     st.markdown(
         "**Method:** HAZUS lognormal fragility curves · Default parameters  |  "
-        "**Scope:** 200 land-only tracts"
+        "**Scope:** 200 land-only tracts  |  "
+        "**Return period assumption:** 1-in-100 year event"
     )
 
     loss_df = load_loss_mbt()
 
+    # ── Key metrics ───────────────────────────────
     c1,c2,c3,c4 = st.columns(4)
     c1.metric("Holland Loss",  "$14.59B")
     c2.metric("cGAN Loss",     "$14.78B", "+$190M ↑")
@@ -597,42 +599,41 @@ elif page == "💰 Loss & Reinsurance":
     c4.metric("cGAN MDR",      "57.1%",   "+0.7 pts ↑")
 
     st.info(
-        "**cGAN loss is correctly HIGHER than Holland (+1.3%)** — "
-        "the cGAN captures higher coastal winds that Holland's "
-        "coarse 5.5 km grid underestimates. "
+        "**cGAN loss correctly HIGHER than Holland (+1.3%)** — "
+        "cGAN captures higher coastal winds Holland underestimates. "
         "50.8% of buildings reached DS4 (destruction)."
     )
-
     st.divider()
-    tab1,tab2,tab3 = st.tabs([
-        "Loss by Building Type","Wind-Loss Nonlinearity","Charts"])
 
+    # ── Tabs: Loss Results | Reinsurance ─────────
+    tab1, tab2 = st.tabs(["📊 Loss Results", "🔄 Reinsurance Analysis"])
+
+    # ══ TAB 1 — LOSS RESULTS ══════════════════════
     with tab1:
-        st.subheader("Expected Loss by Building Type — Land Tracts Only")
+        st.subheader("Expected Loss by Building Type")
         plot_df = loss_df[loss_df["MBT"] != "Total"].copy()
 
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            name="Holland loss", x=plot_df["MBT"],
+            name="Holland", x=plot_df["MBT"],
             y=plot_df["loss_hol_b"], marker_color="#3B8BD4",
             text=plot_df["loss_hol_b"].apply(lambda x: f"${x:.2f}B"),
             textposition="outside"
         ))
         fig.add_trace(go.Bar(
-            name="cGAN loss", x=plot_df["MBT"],
+            name="cGAN", x=plot_df["MBT"],
             y=plot_df["loss_cgan_b"], marker_color="#E8593C",
             text=plot_df["loss_cgan_b"].apply(lambda x: f"${x:.2f}B"),
             textposition="outside"
         ))
         fig.update_layout(
             barmode="group",
-            title="Expected loss by building type — Holland vs cGAN ($B)",
-            yaxis_title="Loss ($B)", xaxis_title="Building Type",
-            height=420
+            title="Expected loss by building type ($B)",
+            yaxis_title="Loss ($B)",
+            height=400
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # Full table
         st.dataframe(
             loss_df.rename(columns={
                 "MBT":"Type","n_buildings":"Buildings",
@@ -640,11 +641,11 @@ elif page == "💰 Loss & Reinsurance":
                 "mdr_cgan_pct":"cGAN MDR (%)","loss_hol_b":"Holland Loss ($B)",
                 "loss_cgan_b":"cGAN Loss ($B)"
             }).style.format({
-                "TIV ($B)":       "${:.3f}",
-                "Holland MDR (%)":"{:.1f}%",
-                "cGAN MDR (%)":   "{:.1f}%",
-                "Holland Loss ($B)":"${:.3f}",
-                "cGAN Loss ($B)": "${:.3f}",
+                "TIV ($B)":          "${:.3f}",
+                "Holland MDR (%)":   "{:.1f}%",
+                "cGAN MDR (%)":      "{:.1f}%",
+                "Holland Loss ($B)": "${:.3f}",
+                "cGAN Loss ($B)":    "${:.3f}",
             }),
             hide_index=True, use_container_width=True
         )
@@ -657,74 +658,309 @@ elif page == "💰 Loss & Reinsurance":
                 st.divider()
                 st.subheader("Damage State Distribution")
                 ds_df = pd.DataFrame({
-                    "Damage State":["DS0 No damage","DS1 Minor",
-                                    "DS2 Moderate","DS3 Severe","DS4 Destruction"],
+                    "Damage State": ["DS0 No damage","DS1 Minor",
+                                     "DS2 Moderate","DS3 Severe","DS4 Destruction"],
                     "Buildings":   [int(loss_tract[c].sum()) for c in ds_cols],
-                    "Pct":         [round(loss_tract[c].sum()/loss_tract["n_buildings"].sum()*100,1)
+                    "Pct":         [round(loss_tract[c].sum()/
+                                    loss_tract["n_buildings"].sum()*100,1)
                                     for c in ds_cols],
                 })
-                fig = px.bar(
+                fig2 = px.bar(
                     ds_df, x="Damage State", y="Buildings",
-                    title="Buildings by damage state — Lee County land tracts",
                     color="Pct", color_continuous_scale="RdYlGn_r",
-                    text=ds_df.apply(lambda r: f"{r['Buildings']:,.0f}\n({r['Pct']}%)",axis=1)
+                    title="Buildings by damage state — Lee County land tracts",
+                    text=ds_df.apply(
+                        lambda r: f"{r['Buildings']:,.0f} ({r['Pct']}%)", axis=1)
                 )
-                fig.update_traces(textposition="outside")
-                st.plotly_chart(fig, use_container_width=True)
+                fig2.update_traces(textposition="outside")
+                fig2.update_layout(height=380)
+                st.plotly_chart(fig2, use_container_width=True)
                 st.error(
-                    f"**50.8% of buildings reached DS4 (destruction)** — "
-                    f"{int(loss_tract['bldgs_DS4'].sum()):,} buildings destroyed. "
-                    f"Ian's direct Cat 4 landfall caused catastrophic damage."
+                    "**50.8% of buildings reached DS4 (destruction)** — "
+                    f"{int(loss_tract['bldgs_DS4'].sum()):,} buildings destroyed."
                 )
 
+    # ══ TAB 2 — REINSURANCE ═══════════════════════
     with tab2:
-        st.subheader("Why Small Wind Change = Large Financial Impact")
-        wind_range = np.linspace(80,200,300)
-        tiv = 25.87e9
-        fig = make_subplots(rows=1,cols=2,
-            subplot_titles=["Vulnerability curve","Loss on $25.87B portfolio"])
-        for exp,name,color in [
-            (2.0,"Quadratic (V²)","#3B8BD4"),
-            (3.0,"Cubic (V³) — typical","#E8593C"),
-            (4.0,"Quartic (V⁴)","#EF9F27")]:
-            dr = np.minimum(1.0,(wind_range/100)**exp*0.15)
-            fig.add_trace(go.Scatter(x=wind_range,y=dr*100,
-                name=name,line=dict(color=color,width=2)),row=1,col=1)
-        loss_c = np.minimum(1.0,(wind_range/100)**3*0.15)*tiv/1e9
-        fig.add_trace(go.Scatter(x=wind_range,y=loss_c,
-            name="Loss ($B)",line=dict(color="#E8593C",width=2.5),
-            showlegend=False),row=1,col=2)
-        for v,label,color in [
-            (145.6,"Mean (145.6)","#3B8BD4"),
-            (156.2,"Max (156.2)","#E8593C")]:
-            for cn in [1,2]:
-                fig.add_vline(x=v,line_dash="dash",line_color=color,
-                    annotation_text=label,row=1,col=cn)
-        fig.update_xaxes(title_text="Wind speed (mph)")
-        fig.update_yaxes(title_text="Damage ratio (%)",row=1,col=1)
-        fig.update_yaxes(title_text="Loss ($B)",row=1,col=2)
-        fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
-        st.info(
-            "At 145–156 mph we are on the **steepest part** of the vulnerability curve. "
-            "A 0.7% MDR improvement × $25.87B TIV = $181M difference. "
-            "Cubic damage scaling amplifies small wind improvements into large financial impacts."
+        st.subheader("Reinsurance Structuring Analysis")
+        st.markdown(
+            "Compare **Excess of Loss (XOL)** vs **Quota Share** structures "
+            "for the Hurricane Ian loss scenario."
         )
 
-    with tab3:
-        col1,col2 = st.columns(2)
-        with col1:
-            show_image(f"{LOSS}/ep_curve.png","Exceedance probability curve")
-        with col2:
-            show_image(f"{LOSS}/loss_summary_charts.png","Loss summary by building type")
+        # Assumptions
+        with st.expander("📋 Model Assumptions", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("""
+**Loss Basis**
+| Item | Value | Source |
+|------|-------|--------|
+| Holland ground-up loss | $14.59B | HAZUS fragility |
+| cGAN ground-up loss | $14.78B | cGAN super-resolution |
+| TIV (land tracts only) | $25.87B | Census ACS + HAZUS |
+| Overall MDR | 56.4% | Holland baseline |
+| Return period | 1-in-100 yrs | NHC historical freq |
+| Annual prob | 1.0% | 1/return period |
+| Loading factor | 1.35× | Expenses + profit 35% |
+                """)
+            with col2:
+                st.markdown("""
+**Return Period Curve**
+| RP (yrs) | Category | Loss ($B) |
+|----------|----------|-----------|
+| 1-in-5   | Cat 1    | $0.8B     |
+| 1-in-15  | Cat 2    | $2.1B     |
+| 1-in-30  | Cat 3    | $5.4B     |
+| 1-in-100 | Cat 4    | $14.6B ← Ian |
+| 1-in-250 | Cat 5    | $22.3B    |
+
+**XOL Rate-on-Line (ROL)**
+| Layer | ROL |
+|-------|-----|
+| Working (0–$500M) | 25% |
+| 1st Excess | 15% |
+| 2nd Excess | 8% |
+| Cat layer | 4% |
+                """)
+
+        # EP Curve
+        st.subheader("Exceedance Probability Curve")
+        rp       = np.array([2,5,10,15,25,30,50,100,150,200,250,500])
+        prob     = 1/rp*100
+        ian_loss = 14.59
+        loss_hol_ep = np.clip(
+            ian_loss*(np.log(rp)/np.log(100))**2.5, 0.1, 25)
+        loss_cgan_ep = loss_hol_ep * 1.013
+
+        fig_ep = go.Figure()
+        fig_ep.add_trace(go.Scatter(
+            x=loss_hol_ep, y=prob, name="Holland",
+            line=dict(color="#3B8BD4", width=2.5)
+        ))
+        fig_ep.add_trace(go.Scatter(
+            x=loss_cgan_ep, y=prob, name="cGAN",
+            line=dict(color="#E8593C", width=2.5)
+        ))
+        fig_ep.add_vline(x=14.59, line_dash="dash", line_color="#3B8BD4",
+                         annotation_text="Ian (Holland)")
+        fig_ep.add_vline(x=14.78, line_dash="dash", line_color="#E8593C",
+                         annotation_text="Ian (cGAN)")
+        fig_ep.update_layout(
+            title="Exceedance Probability Curve — Lee County",
+            xaxis_title="Loss ($B)",
+            yaxis_title="Annual Exceedance Probability (%)",
+            yaxis_type="log", height=380
+        )
+        st.plotly_chart(fig_ep, use_container_width=True)
+
+        with st.expander("View EP curve data table"):
+            st.dataframe(pd.DataFrame({
+                "Return Period (yrs)": rp,
+                "Annual Prob (%)":     (1/rp*100).round(2),
+                "Holland Loss ($B)":   loss_hol_ep.round(2),
+                "cGAN Loss ($B)":      loss_cgan_ep.round(2),
+            }), hide_index=True, use_container_width=True)
+
         st.divider()
-        col1,col2 = st.columns(2)
+
+        # Controls
+        st.subheader("⚙️ Structure Parameters")
+        loss_model = st.radio(
+            "Loss basis:", ["Holland ($14.59B)", "cGAN ($14.78B)"],
+            horizontal=True
+        )
+        base_loss      = 14.59 if "Holland" in loss_model else 14.78
+        aal            = base_loss * 0.01
+        loaded_premium = aal * 1.35
+
+        st.markdown(
+            f"**Loss:** ${base_loss:.2f}B  |  "
+            f"**AAL:** ${aal*1000:.1f}M  |  "
+            f"**Loaded premium:** ${loaded_premium*1000:.1f}M/yr"
+        )
+
+        col1, col2 = st.columns(2)
         with col1:
-            show_image(f"{CGAN}/holland_vs_cgan_loss_comparison.png",
-                       "Holland vs cGAN loss comparison map")
+            st.markdown("**XOL Parameters**")
+            retention    = st.slider("Retention ($B)",
+                                     0.1, 3.0, 0.5, 0.1)
+            n_layers     = st.slider("Number of layers", 1, 4, 3, 1)
+            layer_width  = st.slider("Layer width ($B)",
+                                     0.5, 5.0, 2.0, 0.5)
         with col2:
-            show_image(f"{CGAN}/wind_exposure_overlay.png",
-                       "Wind field and exposure overlay")
+            st.markdown("**Quota Share Parameters**")
+            cession_pct  = st.slider("Cession (%)", 10, 90, 70, 5)
+            commission   = st.slider("Commission (%)", 15, 40, 25, 1)
+
+        st.divider()
+
+        # XOL Calcs
+        st.subheader("XOL Layer Results")
+        xol_rows       = []
+        insurer_retain = min(base_loss, retention)
+        for i in range(n_layers):
+            lb   = retention + i*layer_width
+            lt   = retention + (i+1)*layer_width
+            loss = max(0, min(base_loss, lt) - max(retention, lb))
+            rol  = [0.25, 0.15, 0.08, 0.04][min(i,3)]
+            xol_rows.append({
+                "Layer":               f"Layer {i+1}",
+                "Attachment ($B)":     round(lb, 1),
+                "Limit ($B)":          round(layer_width, 1),
+                "Exhaustion ($B)":     round(lt, 1),
+                "Loss to Layer ($B)":  round(loss, 3),
+                "ROL (%)":             f"{rol*100:.0f}%",
+                "Annual Premium ($M)": round(layer_width*rol*1000, 0),
+                "% of Total Loss":     f"{loss/base_loss*100:.1f}%"
+            })
+
+        xol_df         = pd.DataFrame(xol_rows)
+        total_xol_loss = sum(r["Loss to Layer ($B)"] for r in xol_rows)
+        total_xol_prem = sum(r["Annual Premium ($M)"] for r in xol_rows)
+        cat_loss       = max(0, base_loss - retention - n_layers*layer_width)
+
+        c1,c2,c3,c4 = st.columns(4)
+        c1.metric("Insurer retains",
+                  f"${insurer_retain:.2f}B",
+                  f"{insurer_retain/base_loss*100:.1f}%")
+        c2.metric("Reinsurer pays",
+                  f"${total_xol_loss:.2f}B",
+                  f"{total_xol_loss/base_loss*100:.1f}%")
+        c3.metric("Above all layers",
+                  f"${cat_loss:.2f}B" if cat_loss>0 else "$0.00B",
+                  "Uninsured" if cat_loss>0 else "Fully covered ✓")
+        c4.metric("XOL premium", f"${total_xol_prem:.0f}M/yr")
+
+        st.dataframe(xol_df, hide_index=True, use_container_width=True)
+
+        xol_chart = [{"Segment":"Retention (Insurer)","Loss":insurer_retain,"Party":"Insurer"}]
+        for r in xol_rows:
+            xol_chart.append({"Segment":r["Layer"],"Loss":r["Loss to Layer ($B)"],"Party":"Reinsurer"})
+        if cat_loss > 0:
+            xol_chart.append({"Segment":"Cat (above layers)","Loss":cat_loss,"Party":"Uninsured"})
+
+        fig_xol = px.bar(
+            pd.DataFrame(xol_chart), x="Segment", y="Loss",
+            color="Party",
+            color_discrete_map={"Insurer":"#E8593C","Reinsurer":"#3B8BD4","Uninsured":"#888"},
+            title=f"XOL — Retention ${retention:.1f}B · {n_layers} layers × ${layer_width:.1f}B",
+            labels={"Loss":"Loss ($B)"},
+            text="Loss"
+        )
+        fig_xol.update_traces(texttemplate="%{text:.2f}B", textposition="outside")
+        fig_xol.update_layout(height=380)
+        st.plotly_chart(fig_xol, use_container_width=True)
+
+        st.divider()
+
+        # Quota Share Calcs
+        st.subheader("Quota Share Results")
+        cession       = cession_pct/100
+        qs_re_loss    = base_loss * cession
+        qs_ins_loss   = base_loss * (1-cession)
+        qs_re_prem    = loaded_premium * cession
+        qs_commission_amt = qs_re_prem * (commission/100)
+        qs_ins_net    = loaded_premium*(1-cession) + qs_commission_amt
+
+        c1,c2,c3,c4 = st.columns(4)
+        c1.metric("Insurer retains",
+                  f"${qs_ins_loss:.2f}B",
+                  f"{100-cession_pct}%")
+        c2.metric("Reinsurer pays",
+                  f"${qs_re_loss:.2f}B",
+                  f"{cession_pct}%")
+        c3.metric("Ceded premium",
+                  f"${qs_re_prem*1000:.0f}M/yr")
+        c4.metric("Commission back",
+                  f"${qs_commission_amt*1000:.0f}M/yr",
+                  f"{commission}% of ceded")
+
+        fig_qs = go.Figure()
+        fig_qs.add_trace(go.Bar(
+            name="Insurer", x=["Loss ($B)","Net Premium ($M)"],
+            y=[qs_ins_loss, qs_ins_net*1000],
+            marker_color="#E8593C",
+            text=[f"${qs_ins_loss:.2f}B", f"${qs_ins_net*1000:.0f}M"],
+            textposition="outside"
+        ))
+        fig_qs.add_trace(go.Bar(
+            name="Reinsurer (net)", x=["Loss ($B)","Net Premium ($M)"],
+            y=[qs_re_loss, (qs_re_prem-qs_commission_amt)*1000],
+            marker_color="#3B8BD4",
+            text=[f"${qs_re_loss:.2f}B",
+                  f"${(qs_re_prem-qs_commission_amt)*1000:.0f}M"],
+            textposition="outside"
+        ))
+        fig_qs.update_layout(
+            barmode="group",
+            title=f"Quota Share — {cession_pct}% cession · {commission}% commission",
+            height=380
+        )
+        st.plotly_chart(fig_qs, use_container_width=True)
+
+        st.divider()
+
+        # Comparison
+        st.subheader("⚖️ XOL vs Quota Share — Recommendation")
+        comp_df = pd.DataFrame({
+            "Metric": [
+                "Insurer retained loss",
+                "Reinsurer loss",
+                "Annual reinsurance cost",
+                "% loss transferred",
+                "Structure type",
+                "Best for"
+            ],
+            "XOL": [
+                f"${insurer_retain:.2f}B",
+                f"${total_xol_loss:.2f}B",
+                f"${total_xol_prem:.0f}M/yr",
+                f"{total_xol_loss/base_loss*100:.1f}%",
+                "Non-proportional",
+                "Cat tail protection"
+            ],
+            "Quota Share": [
+                f"${qs_ins_loss:.2f}B",
+                f"${qs_re_loss:.2f}B",
+                f"${(qs_re_prem-qs_commission_amt)*1000:.0f}M net/yr",
+                f"{cession_pct}%",
+                "Proportional",
+                "Surplus relief + working losses"
+            ]
+        })
+        st.dataframe(comp_df, hide_index=True, use_container_width=True)
+
+        # Recommendation
+        if insurer_retain <= qs_ins_loss:
+            st.success(f"""
+**✓ Recommendation: XOL is better for this scenario**
+
+XOL retains ${insurer_retain:.2f}B vs ${qs_ins_loss:.2f}B under Quota Share.
+At ${total_xol_prem:.0f}M/yr vs ${(qs_re_prem-qs_commission_amt)*1000:.0f}M net/yr for QS,
+XOL provides **superior cat tail protection at lower annual cost.**
+
+For a direct Cat 4 landfall like Ian (1-in-100 yr event):
+- XOL only triggers above the ${retention:.1f}B retention
+- You pay premium only for layers likely to be hit
+- Quota Share would cede {cession_pct}% of premium every year regardless of losses
+- **Combined structure:** QS for working layer (frequency) + XOL for cat (severity)
+            """)
+        else:
+            st.info(f"""
+**ℹ️ Recommendation: Quota Share provides more protection at current settings**
+
+Consider increasing XOL layers or reducing retention to improve XOL efficiency.
+Current settings retain ${insurer_retain:.2f}B under XOL vs ${qs_ins_loss:.2f}B under QS.
+            """)
+
+        st.markdown("""
+**Industry context for Lee County Cat exposure:**
+- Florida insurers typically use **XOL towers** of $500M xs $500M per occurrence
+- Quota Share is used primarily for **surplus relief** by smaller carriers
+- Ian 2022 exhausted most Florida domestic insurer cat programs
+- Post-Ian, ROL rates increased 30–50% for Florida cat XOL layers
+        """)
 
 # ══════════════════════════════════════════════════════════
 # PAGE 6 — MODEL TRAINING
