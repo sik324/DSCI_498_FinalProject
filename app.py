@@ -404,12 +404,13 @@ elif page == "🏘 Exposure Module":
                 color="cv", size="sz",
                 color_continuous_scale="RdYlGn_r",
                 mapbox_style="carto-positron",
-                zoom=10, center={"lat":26.55,"lon":-81.80},
-                size_max=12, opacity=0.85,
+                zoom=9, center={"lat":26.52,"lon":-81.75},
+                size_max=6, opacity=0.8,
                 labels={"cv":"Value","sz":"Size"},
                 title="Lee County — Land Census Tracts"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            fig.update_layout(height=400, margin={"r":0,"t":30,"l":0,"b":0})
+            st.plotly_chart(fig, use_column_width=True)
             st.caption("200 land-only tracts | 23 water tracts excluded")
         except Exception as e:
             st.error(f"Map error: {e}")
