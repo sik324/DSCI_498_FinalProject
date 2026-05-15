@@ -394,20 +394,21 @@ elif page == "🏘 Exposure Module":
                 "TIV_M":"TIV ($M)","buildings":"Buildings",
                 "wind_diff":"cGAN − Holland (mph)"}.get(x,x)
         )
+        _df = df[["lat","lon","TIV_M","buildings",color_col]].copy()
+        _df = _df.rename(columns={color_col:"color_val"})
+        _df.columns = [str(c) for c in _df.columns]
         fig = px.scatter_mapbox(
-            df, lat="lat", lon="lon",
-            color=color_col, size="TIV_M",
+            _df, lat="lat", lon="lon",
+            color="color_val", size="TIV_M",
             color_continuous_scale="RdYlGn_r",
             mapbox_style="carto-positron",
             zoom=9, center={"lat":26.55,"lon":-81.80},
             size_max=15, opacity=0.85,
-            labels={"wind_hol":"Holland (mph)","wind_cgan":"cGAN (mph)",
-                    "TIV_M":"TIV ($M)","buildings":"Buildings",
-                    "wind_diff":"Wind diff (mph)"},
+            labels={"color_val":"Value","TIV_M":"TIV ($M)"},
             title="Lee County — Land Census Tracts (200 land tracts)"
         )
         st.plotly_chart(fig, use_container_width=True)
-        st.caption(f"Showing {len(df)} land-only tracts | 23 water tracts excluded")
+        st.caption("Showing 200 land-only tracts | 23 water tracts excluded")
 
     with tab2:
         st.subheader("HAZUS Building Type Distribution — Land Tracts")
