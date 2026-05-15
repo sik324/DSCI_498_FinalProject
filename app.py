@@ -747,6 +747,14 @@ elif page == "📊 Model Training":
         fig.update_layout(height=380)
         st.plotly_chart(fig, use_container_width=True)
 
+        st.info(
+            "**Note on generator loss increasing:** This is normal GAN behavior. "
+            "As the discriminator improves (D loss stays low ~0.3), it becomes "
+            "harder to fool — so the generator loss increases. "
+            "What matters is the **validation loss** (green) which reached "
+            "its best value of 0.0050 at epoch 61 — confirming the model learned well."
+        )
+
         with st.expander("View raw training data"):
             st.dataframe(
                 loss_df.style.format({"g_loss":"{:.4f}","d_loss":"{:.4f}",
