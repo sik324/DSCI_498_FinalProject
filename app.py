@@ -394,22 +394,25 @@ elif page == "🏘 Exposure Module":
                 "TIV_M":"TIV ($M)","buildings":"Buildings",
                 "wind_diff":"cGAN − Holland (mph)"}.get(x,x)
         )
-        # Build map data safely avoiding narwhals issues
-        _vals = df[color_col].tolist()
-        _tiv  = df["TIV_M"].tolist()
-        _lats = df["lat"].tolist()
-        _lons = df["lon"].tolist()
+        # Safe map — ensure column exists
+        valid_cols = [c for c in ["wind_hol","wind_cgan","TIV_M","buildings","wind_diff"] if c in df.columns]
+        if color_col not in df.columns:
+            color_col = valid_cols[0] if valid_cols else "TIV_M"
         import pandas as _pd
-        _df   = _pd.DataFrame({"lat":_lats,"lon":_lons,
-                               "color_val":_vals,"TIV_M":_tiv})
+        _df = _pd.DataFrame({
+            "lat"      : df["lat"].tolist(),
+            "lon"      : df["lon"].tolist(),
+            "color_val": df[color_col].tolist(),
+            "size_val" : df["TIV_M"].tolist() if "TIV_M" in df.columns else [100]*len(df),
+        })
         fig = px.scatter_mapbox(
             _df, lat="lat", lon="lon",
-            color="color_val", size="TIV_M",
+            color="color_val", size="size_val",
             color_continuous_scale="RdYlGn_r",
             mapbox_style="carto-positron",
             zoom=9, center={"lat":26.55,"lon":-81.80},
             size_max=15, opacity=0.85,
-            labels={"color_val":"Value","TIV_M":"TIV ($M)"},
+            labels={"color_val":"Value","size_val":"TIV ($M)"},
             title="Lee County — Land Census Tracts (200 land tracts)"
         )
         st.plotly_chart(fig, use_container_width=True)
