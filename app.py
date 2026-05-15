@@ -144,8 +144,8 @@ page = st.sidebar.radio("Navigation", [
     "🏠 Overview",
     "🌪 Hazard Module",
     "🏘 Exposure Module",
-    "🤖 cGAN Results",
-    "💰 Loss Analysis",
+    
+    "💰 Loss & Reinsurance",
     "📊 Model Training",
     "🛡 Model Validation & Defense",
 ])
@@ -581,8 +581,8 @@ elif page == "🤖 cGAN Results":
 # ══════════════════════════════════════════════════════════
 # PAGE 5 — LOSS ANALYSIS
 # ══════════════════════════════════════════════════════════
-elif page == "💰 Loss Analysis":
-    st.title("💰 Loss Analysis — HAZUS Vulnerability + Loss")
+elif page == "💰 Loss & Reinsurance":
+    st.title("💰 Loss & Reinsurance Analysis")
     st.markdown(
         "**Method:** HAZUS lognormal fragility curves · Default parameters  |  "
         "**Scope:** 200 land-only tracts"
