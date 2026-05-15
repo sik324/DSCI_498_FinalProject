@@ -400,23 +400,31 @@ elif page == "🏘 Exposure Module":
                 "TIV_M":"TIV ($M)","buildings":"Buildings",
                 "wind_diff":"cGAN − Holland (mph)"}.get(x,x)
         )
-        # Safe map — ensure column exists
-        valid_cols = [c for c in ["wind_hol","wind_cgan","TIV_M","buildings","wind_diff"] if c in df.columns]
-        if color_col not in df.columns:
-            color_col = valid_cols[0] if valid_cols else "TIV_M"
-        import pandas as _pd
-        _df = _pd.DataFrame({
-            "lat"      : df["lat"].tolist(),
-            "lon"      : df["lon"].tolist(),
-            "color_val": df[color_col].tolist(),
-            "size_val" : df["TIV_M"].tolist() if "TIV_M" in df.columns else [100]*len(df),
-        })
-        fig = px.scatter_mapbox(
-            _df, lat="lat", lon="lon",
-            color="color_val", size="size_val",
-            color_continuous_scale="RdYlGn_r",
-            mapbox_style="carto-positron",
-            zoom=9, center={"lat":26.55,"lon":-81.80},
+        # Bulletproof map build
+        try:
+            col = color_col if color_col in df.columns else "wind_hol"
+            import pandas as _pd
+            _df = _pd.DataFrame({
+                "lat"  : list(df["lat"]),
+                "lon"  : list(df["lon"]),
+                "cv"   : list(df[col]),
+                "sz"   : list(df["TIV_M"]) if "TIV_M" in df.columns else [100]*len(df),
+            })
+            fig = px.scatter_mapbox(
+                _df, lat="lat", lon="lon",
+                color="cv", size="sz",
+                color_continuous_scale="RdYlGn_r",
+                mapbox_style="carto-positron",
+                zoom=9, center={"lat":26.55,"lon":-81.80},
+                size_max=15, opacity=0.85,
+                labels={"cv":"Value","sz":"TIV ($M)"},
+                title="Lee County — Land Census Tracts"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption("200 land-only tracts | 23 water tracts excluded")
+        except Exception as e:
+            st.error(f"Map error: {e}")
+            st.write(f"df type: {type(df)}, columns: {list(df.columns) if hasattr(df, 'columns') else 'N/A'}")
             size_max=15, opacity=0.85,
             labels={"color_val":"Value","size_val":"TIV ($M)"},
             title="Lee County — Land Census Tracts (200 land tracts)"
