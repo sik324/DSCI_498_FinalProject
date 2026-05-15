@@ -4,3 +4,5 @@ numpy
 plotly==5.24.1
 scipy
 matplotlib
+geopandas
+rasterio
