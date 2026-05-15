@@ -298,7 +298,7 @@ elif page == "🌪 Hazard Module":
             color_continuous_scale="RdYlGn_r",
             size_max=25, mapbox_style="carto-positron",
             zoom=5, center={"lat":25.5,"lon":-82.5},
-            hover_data={"time":True, vc:True},
+            hover_data=["time", vc],
             labels={vc:"Wind (kt)","time":"Time"},
             title="Hurricane Ian (2022) — IBTrACS Real Track"
         )
@@ -404,7 +404,7 @@ elif page == "🏘 Exposure Module":
             labels={"wind_hol":"Holland (mph)","wind_cgan":"cGAN (mph)",
                     "TIV_M":"TIV ($M)","buildings":"Buildings",
                     "wind_diff":"Wind diff (mph)"},
-            title=f"Lee County — {len(df)} Land Census Tracts"
+            title="Lee County — Land Census Tracts (200 land tracts)"
         )
         st.plotly_chart(fig, use_container_width=True)
         st.caption(f"Showing {len(df)} land-only tracts | 23 water tracts excluded")
@@ -652,7 +652,7 @@ elif page == "💰 Loss Analysis":
                 })
                 fig = px.bar(
                     ds_df, x="Damage State", y="Buildings",
-                    title=f"Buildings by damage state — {loss_tract['n_buildings'].sum():,} total",
+                    title="Buildings by damage state — Lee County land tracts",
                     color="Pct", color_continuous_scale="RdYlGn_r",
                     text=ds_df.apply(lambda r: f"{r['Buildings']:,.0f}\n({r['Pct']}%)",axis=1)
                 )
