@@ -50,12 +50,18 @@ def load_exposure():
     p = f"{EXP}/lee_tract_merged.csv"
     if os.path.exists(p):
         df = pd.read_csv(p)
-        rn = {}
-        if "peak_gust_mph"   in df.columns: rn["peak_gust_mph"]   = "wind_hol"
-        if "TIV_millions"    in df.columns: rn["TIV_millions"]    = "TIV_M"
-        if "total_buildings" in df.columns: rn["total_buildings"] = "buildings"
-        if "wind_mph"        in df.columns: rn["wind_mph"]        = "wind_hol"
-        df = df.rename(columns=rn)
+        # Drop duplicate columns first
+        df = df.loc[:, ~df.columns.duplicated(keep="first")]
+        # Only rename if target column does not already exist
+        if "peak_gust_mph" in df.columns and "wind_hol" not in df.columns:
+            df = df.rename(columns={"peak_gust_mph":"wind_hol"})
+        if "wind_mph" in df.columns and "wind_hol" not in df.columns:
+            df = df.rename(columns={"wind_mph":"wind_hol"})
+        if "TIV_millions" in df.columns and "TIV_M" not in df.columns:
+            df = df.rename(columns={"TIV_millions":"TIV_M"})
+        if "total_buildings" in df.columns and "buildings" not in df.columns:
+            df = df.rename(columns={"total_buildings":"buildings"})
+        # Add missing columns
         if "wind_hol"  not in df.columns: df["wind_hol"]  = 130.0
         if "TIV_M"     not in df.columns: df["TIV_M"]     = 100.0
         if "buildings" not in df.columns: df["buildings"] = 500
@@ -64,26 +70,9 @@ def load_exposure():
             df["wind_cgan"] = df["wind_hol"] + np.random.normal(0.94,1.5,len(df))
         if "wind_diff" not in df.columns:
             df["wind_diff"] = df["wind_cgan"] - df["wind_hol"]
+        # Final dedup check
+        df = df.loc[:, ~df.columns.duplicated(keep="first")]
         return df.dropna(subset=["lat","lon"]), True
-    # Fallback — land-only Lee County points
-    np.random.seed(42)
-    rows = []
-    for la,lb,loa,lob,n,zone in [
-        (26.52,26.72,-82.00,-81.88,55,"Cape Coral"),
-        (26.52,26.68,-81.90,-81.65,60,"Fort Myers"),
-        (26.52,26.68,-81.65,-81.35,50,"Lehigh Acres"),
-        (26.30,26.45,-81.82,-81.65,35,"Bonita Springs")]:
-        lats = np.random.uniform(la,lb,n)
-        lons = np.random.uniform(loa,lob,n)
-        wh   = np.clip(155-(lons+82)*12+np.random.normal(0,3,n),90,157)
-        wc   = np.clip(wh+np.random.normal(0.94,1.5,n),90,160)
-        tiv  = np.clip(np.random.exponential(130,n)+30,10,8000)
-        bldg = np.clip((tiv*6+np.random.normal(0,50,n)).astype(int),50,2500)
-        for i in range(n):
-            rows.append({"lat":lats[i],"lon":lons[i],"wind_hol":wh[i],
-                         "wind_cgan":wc[i],"wind_diff":wc[i]-wh[i],
-                         "TIV_M":tiv[i],"buildings":bldg[i],"zone":zone})
-    return pd.DataFrame(rows), False
 
 @st.cache_data
 def load_loss_mbt():
