@@ -1,222 +1,35 @@
-FIPS,STATE,COUNTY,max_gust_mph,mean_gust_mph,pct_above_cat1
-12075,Florida,Levy,162.8,148.7,100.0
-12083,Florida,Marion,162.2,135.9,100.0
-12001,Florida,Alachua,159.1,142.5,100.0
-12017,Florida,Citrus,158.5,147.9,100.0
-12029,Florida,Dixie,158.4,137.0,100.0
-12119,Florida,Sumter,156.7,148.7,100.0
-12053,Florida,Hernando,156.6,145.8,100.0
-12041,Florida,Gilchrist,153.8,143.7,100.0
-12023,Florida,Columbia,153.5,135.2,100.0
-12069,Florida,Lake,153.2,137.2,100.0
-12101,Florida,Pasco,150.2,119.7,100.0
-12067,Florida,Lafayette,148.9,138.4,100.0
-12125,Florida,Union,146.3,130.8,100.0
-12095,Florida,Orange,144.4,114.7,100.0
-12121,Florida,Suwannee,142.4,133.3,100.0
-12105,Florida,Polk,141.3,110.2,100.0
-12007,Florida,Bradford,139.1,111.2,100.0
-12079,Florida,Madison,135.4,114.9,100.0
-12047,Florida,Hamilton,132.6,129.1,100.0
-12097,Florida,Osceola,132.6,100.2,100.0
-12123,Florida,Taylor,131.9,100.8,99.3
-12003,Florida,Baker,126.5,109.6,100.0
-12117,Florida,Seminole,125.2,104.8,100.0
-12057,Florida,Hillsborough,121.2,88.5,85.8
-12107,Florida,Putnam,114.1,85.8,82.9
-12127,Florida,Volusia,109.3,83.8,74.1
-12019,Florida,Clay,105.8,81.4,72.6
-12065,Florida,Jefferson,98.1,79.4,72.7
-12103,Florida,Pinellas,95.3,71.6,38.8
-12055,Florida,Highlands,90.6,75.4,48.5
-12049,Florida,Hardee,89.4,79.7,81.7
-12031,Florida,Duval,87.6,65.2,16.1
-12093,Florida,Okeechobee,87.4,73.1,40.2
-12089,Florida,Nassau,86.9,72.9,47.1
-12009,Florida,Brevard,85.7,74.1,50.0
-12061,Florida,Indian River,85.7,72.5,36.2
-12035,Florida,Flagler,85.2,70.3,35.1
-12081,Florida,Manatee,83.0,65.8,15.7
-12073,Florida,Leon,76.3,63.9,5.9
-12086,Florida,Miami-Dade,73.5,65.3,0.0
-12011,Florida,Broward,72.4,69.2,0.0
-12085,Florida,Martin,72.1,69.8,0.0
-12111,Florida,St. Lucie,72.0,68.4,0.0
-12027,Florida,DeSoto,71.9,63.7,0.0
-12099,Florida,Palm Beach,71.5,67.7,0.0
-12043,Florida,Glades,71.0,66.8,0.0
-12087,Florida,Monroe,70.7,44.8,0.0
-12109,Florida,St. Johns,68.9,57.1,0.0
-12129,Florida,Wakulla,68.4,57.7,0.0
-12051,Florida,Hendry,68.2,63.7,0.0
-12021,Florida,Collier,66.1,55.0,0.0
-12039,Florida,Gadsden,65.0,55.1,0.0
-12115,Florida,Sarasota,64.7,54.2,0.0
-12015,Florida,Charlotte,61.5,52.6,0.0
-12071,Florida,Lee,59.1,50.6,0.0
-12037,Florida,Franklin,55.7,42.5,0.0
-12077,Florida,Liberty,51.7,45.4,0.0
-12063,Florida,Jackson,47.5,41.0,0.0
-01069,Alabama,Houston,45.2,39.0,0.0
-12013,Florida,Calhoun,44.8,40.3,0.0
-01067,Alabama,Henry,41.8,38.4,0.0
-12045,Florida,Gulf,40.0,36.2,0.0
-12005,Florida,Bay,36.9,32.1,0.0
-12133,Florida,Washington,36.3,32.9,0.0
-01045,Alabama,Dale,35.2,32.4,0.0
-01061,Alabama,Geneva,35.2,30.2,0.0
-12059,Florida,Holmes,34.5,30.7,0.0
-01031,Alabama,Coffee,30.0,27.3,0.0
-12131,Florida,Walton,29.4,26.0,0.0
-01039,Alabama,Covington,25.3,22.4,0.0
-01041,Alabama,Crenshaw,24.2,23.9,0.0
-12091,Florida,Okaloosa,23.4,21.6,0.0
-01053,Alabama,Escambia,20.1,17.1,0.0
-01035,Alabama,Conecuh,19.8,18.0,0.0
-12113,Florida,Santa Rosa,19.6,17.9,0.0
-12033,Florida,Escambia,18.4,15.9,0.0
-01099,Alabama,Monroe,17.4,16.2,0.0
-01025,Alabama,Clarke,16.0,15.3,0.0
-01003,Alabama,Baldwin,15.5,14.3,0.0
-01129,Alabama,Washington,15.0,14.1,0.0
-01097,Alabama,Mobile,14.5,13.3,0.0
-28041,Mississippi,Greene,13.5,12.9,0.0
-28153,Mississippi,Wayne,13.4,12.9,0.0
-28039,Mississippi,George,13.1,12.6,0.0
-28059,Mississippi,Jackson,12.8,12.2,0.0
-28111,Mississippi,Perry,12.5,12.1,0.0
-28067,Mississippi,Jones,12.3,11.8,0.0
-28131,Mississippi,Stone,12.0,11.6,0.0
-28035,Mississippi,Forrest,11.9,11.5,0.0
-28047,Mississippi,Harrison,11.8,11.4,0.0
-22087,Louisiana,St. Bernard,11.5,10.7,0.0
-28073,Mississippi,Lamar,11.3,11.0,0.0
-28031,Mississippi,Covington,11.3,11.2,0.0
-28109,Mississippi,Pearl River,11.2,10.7,0.0
-22075,Louisiana,Plaquemines,11.1,10.2,0.0
-28045,Mississippi,Hancock,11.1,10.8,0.0
-28065,Mississippi,Jefferson Davis,11.0,10.6,0.0
-28091,Mississippi,Marion,10.8,10.5,0.0
-22103,Louisiana,St. Tammany,10.5,10.2,0.0
-22117,Louisiana,Washington,10.5,10.3,0.0
-22071,Louisiana,Orleans,10.4,10.1,0.0
-28077,Mississippi,Lawrence,10.4,10.4,0.0
-28147,Mississippi,Walthall,10.4,10.3,0.0
-28085,Mississippi,Lincoln,10.3,10.2,0.0
-28113,Mississippi,Pike,10.3,10.2,0.0
-28037,Mississippi,Franklin,10.2,10.0,0.0
-22105,Louisiana,Tangipahoa,10.2,10.1,0.0
-22095,Louisiana,St. John the Baptist,10.1,10.0,0.0
-22051,Louisiana,Jefferson,10.1,10.0,0.0
-22091,Louisiana,St. Helena,10.1,10.0,0.0
-28005,Mississippi,Amite,10.1,10.0,0.0
-22037,Louisiana,East Feliciana,10.0,9.9,0.0
-22089,Louisiana,St. Charles,10.0,9.9,0.0
-22063,Louisiana,Livingston,10.0,9.9,0.0
-22125,Louisiana,West Feliciana,9.9,9.8,0.0
-22005,Louisiana,Ascension,9.9,9.8,0.0
-28001,Mississippi,Adams,9.9,9.8,0.0
-22033,Louisiana,East Baton Rouge,9.9,9.8,0.0
-22057,Louisiana,Lafourche,9.9,9.8,0.0
-28157,Mississippi,Wilkinson,9.9,9.8,0.0
-22093,Louisiana,St. James,9.9,9.8,0.0
-22029,Louisiana,Concordia,9.8,9.7,0.0
-22121,Louisiana,West Baton Rouge,9.8,9.7,0.0
-22007,Louisiana,Assumption,9.8,9.7,0.0
-22109,Louisiana,Terrebonne,9.8,9.7,0.0
-22077,Louisiana,Pointe Coupee,9.8,9.7,0.0
-22047,Louisiana,Iberville,9.8,9.7,0.0
-22045,Louisiana,Iberia,9.7,9.5,0.0
-22101,Louisiana,St. Mary,9.7,9.6,0.0
-22099,Louisiana,St. Martin,9.7,9.6,0.0
-22025,Louisiana,Catahoula,9.7,9.6,0.0
-22009,Louisiana,Avoyelles,9.7,9.6,0.0
-22079,Louisiana,Rapides,9.6,9.4,0.0
-22059,Louisiana,LaSalle,9.6,9.6,0.0
-22097,Louisiana,St. Landry,9.6,9.5,0.0
-22039,Louisiana,Evangeline,9.5,9.4,0.0
-22113,Louisiana,Vermilion,9.5,9.4,0.0
-22001,Louisiana,Acadia,9.5,9.4,0.0
-22043,Louisiana,Grant,9.5,9.4,0.0
-22055,Louisiana,Lafayette,9.5,9.5,0.0
-22003,Louisiana,Allen,9.4,9.3,0.0
-22023,Louisiana,Cameron,9.3,9.1,0.0
-22053,Louisiana,Jefferson Davis,9.3,9.3,0.0
-22115,Louisiana,Vernon,9.3,9.2,0.0
-22069,Louisiana,Natchitoches,9.3,9.2,0.0
-22019,Louisiana,Calcasieu,9.2,9.1,0.0
-22011,Louisiana,Beauregard,9.2,9.1,0.0
-22085,Louisiana,Sabine,9.2,9.1,0.0
-48403,Texas,Sabine,9.1,9.0,0.0
-48351,Texas,Newton,9.1,9.0,0.0
-48241,Texas,Jasper,9.0,8.9,0.0
-48361,Texas,Orange,9.0,9.0,0.0
-48245,Texas,Jefferson,9.0,8.9,0.0
-48005,Texas,Angelina,8.9,8.8,0.0
-48071,Texas,Chambers,8.9,8.8,0.0
-48347,Texas,Nacogdoches,8.9,8.8,0.0
-48457,Texas,Tyler,8.9,8.9,0.0
-48199,Texas,Hardin,8.9,8.9,0.0
-48405,Texas,San Augustine,8.9,8.9,0.0
-48291,Texas,Liberty,8.8,8.8,0.0
-48373,Texas,Polk,8.8,8.7,0.0
-48167,Texas,Galveston,8.8,8.7,0.0
-48339,Texas,Montgomery,8.7,8.6,0.0
-48073,Texas,Cherokee,8.7,8.7,0.0
-48039,Texas,Brazoria,8.7,8.6,0.0
-48201,Texas,Harris,8.7,8.6,0.0
-48455,Texas,Trinity,8.7,8.6,0.0
-48407,Texas,San Jacinto,8.7,8.7,0.0
-48225,Texas,Houston,8.7,8.6,0.0
-48157,Texas,Fort Bend,8.6,8.6,0.0
-48471,Texas,Walker,8.6,8.6,0.0
-48321,Texas,Matagorda,8.6,8.5,0.0
-48015,Texas,Austin,8.5,8.5,0.0
-48089,Texas,Colorado,8.5,8.4,0.0
-48289,Texas,Leon,8.5,8.4,0.0
-48057,Texas,Calhoun,8.5,8.4,0.0
-48481,Texas,Wharton,8.5,8.5,0.0
-48473,Texas,Waller,8.5,8.5,0.0
-48239,Texas,Jackson,8.5,8.4,0.0
-48477,Texas,Washington,8.5,8.4,0.0
-48041,Texas,Brazos,8.5,8.4,0.0
-48313,Texas,Madison,8.5,8.5,0.0
-48185,Texas,Grimes,8.5,8.5,0.0
-48391,Texas,Refugio,8.4,8.4,0.0
-48149,Texas,Fayette,8.4,8.3,0.0
-48273,Texas,Kleberg,8.4,8.3,0.0
-48007,Texas,Aransas,8.4,8.4,0.0
-48469,Texas,Victoria,8.4,8.4,0.0
-48489,Texas,Willacy,8.4,8.3,0.0
-48395,Texas,Robertson,8.4,8.3,0.0
-48293,Texas,Limestone,8.4,8.3,0.0
-48051,Texas,Burleson,8.4,8.4,0.0
-48409,Texas,San Patricio,8.4,8.3,0.0
-48287,Texas,Lee,8.4,8.3,0.0
-48355,Texas,Nueces,8.4,8.3,0.0
-48161,Texas,Freestone,8.4,8.4,0.0
-48061,Texas,Cameron,8.4,8.3,0.0
-48285,Texas,Lavaca,8.4,8.4,0.0
-48215,Texas,Hidalgo,8.3,8.3,0.0
-48177,Texas,Gonzales,8.3,8.3,0.0
-48123,Texas,DeWitt,8.3,8.3,0.0
-48249,Texas,Jim Wells,8.3,8.3,0.0
-48255,Texas,Karnes,8.3,8.2,0.0
-48055,Texas,Caldwell,8.3,8.2,0.0
-48145,Texas,Falls,8.3,8.2,0.0
-48175,Texas,Goliad,8.3,8.3,0.0
-48261,Texas,Kenedy,8.3,8.3,0.0
-48297,Texas,Live Oak,8.3,8.2,0.0
-48331,Texas,Milam,8.3,8.3,0.0
-48021,Texas,Bastrop,8.3,8.2,0.0
-48025,Texas,Bee,8.3,8.3,0.0
-48309,Texas,McLennan,8.2,8.1,0.0
-48027,Texas,Bell,8.2,8.1,0.0
-48453,Texas,Travis,8.2,8.2,0.0
-48187,Texas,Guadalupe,8.2,8.2,0.0
-48209,Texas,Hays,8.2,8.2,0.0
-48491,Texas,Williamson,8.2,8.2,0.0
-48493,Texas,Wilson,8.2,8.2,0.0
-48099,Texas,Coryell,8.1,8.1,0.0
-48053,Texas,Burnet,8.1,8.1,0.0
-48281,Texas,Lampasas,8.0,8.0,0.0
+COUNTY,max_gust_mph
+Hernando,53.8
+Volusia,69.5
+Hendry,141.0
+Orange,71.1
+Broward,66.2
+Palm Beach,80.7
+Miami-Dade,54.1
+Highlands,135.0
+Okeechobee,102.3
+St. Johns,56.6
+DeSoto,150.3
+Glades,141.6
+Manatee,135.8
+Lake,63.1
+Pinellas,71.2
+Pasco,66.1
+Sumter,62.1
+Seminole,69.2
+Martin,80.1
+Monroe,124.5
+Flagler,62.1
+Lee,157.5
+Putnam,54.9
+Polk,109.4
+St. Lucie,78.3
+Collier,151.3
+Sarasota,154.8
+Osceola,95.8
+Marion,55.8
+Hardee,124.0
+Brevard,81.8
+Indian River,87.1
+Hillsborough,98.6
+Charlotte,156.7
