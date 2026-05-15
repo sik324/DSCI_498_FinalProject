@@ -444,14 +444,15 @@ elif page == "🏘 Exposure Module":
 
     with tab3:
         st.subheader("Wind Speed vs TIV by Tract")
+        _sc = df[["wind_hol","TIV_M","wind_diff","buildings"]].copy()
+        _sc.columns = [str(c) for c in _sc.columns]
         fig = px.scatter(
-            df, x="wind_hol", y="TIV_M",
+            _sc, x="wind_hol", y="TIV_M",
             color="wind_diff", size="buildings",
             color_continuous_scale="RdYlGn",
             labels={"wind_hol":"Holland wind (mph)","TIV_M":"TIV ($M)",
-                    "wind_diff":"cGAN−Holland (mph)","buildings":"Buildings"},
-            title="Wind speed vs exposure — 200 land tracts",
-            hover_data=["buildings"]
+                    "wind_diff":"cGAN-Holland (mph)","buildings":"Buildings"},
+            title="Wind speed vs exposure — 200 land tracts"
         )
         st.plotly_chart(fig, use_container_width=True)
 
