@@ -740,7 +740,8 @@ elif page == "📊 Model Training":
         fig.add_trace(go.Scatter(x=loss_df["epoch"],y=loss_df["val_loss"],
             name="Validation",line=dict(color="#1D9E75",width=2)),row=1,col=2)
         fig.add_hline(y=best_val,line_dash="dash",line_color="red",
-            annotation_text=f"Best: {best_val:.4f} (ep {best_ep})",row=1,col=2)
+            annotation_text=f"Best={best_val:.4f}",
+            annotation_position="bottom right",row=1,col=2)
         fig.update_xaxes(title_text="Epoch")
         fig.update_yaxes(title_text="Loss",row=1,col=1)
         fig.update_yaxes(title_text="Val loss",row=1,col=2)
