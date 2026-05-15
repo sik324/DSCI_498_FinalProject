@@ -373,7 +373,13 @@ elif page == "🏘 Exposure Module":
         "**Scope:** 200 land-only tracts (23 water tracts excluded using TIGER ALAND/AWATER)"
     )
 
-    df, is_real = load_exposure()
+    _exp = load_exposure()
+    df = _exp[0] if isinstance(_exp, tuple) else _exp
+    is_real = _exp[1] if isinstance(_exp, tuple) else True
+    # Ensure df is a proper DataFrame
+    if not hasattr(df, "columns"):
+        st.error("Exposure data failed to load")
+        st.stop()
 
     c1,c2,c3,c4 = st.columns(4)
     c1.metric("Land Tracts",     "200",      "of 223 total")
