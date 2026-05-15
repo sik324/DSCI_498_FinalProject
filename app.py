@@ -962,6 +962,242 @@ Current settings retain ${insurer_retain:.2f}B under XOL vs ${qs_ins_loss:.2f}B 
 - Post-Ian, ROL rates increased 30–50% for Florida cat XOL layers
         """)
 
+        rp       = np.array([2,5,10,15,25,30,50,100,150,200,250,500])
+        prob     = 1/rp*100
+        ian_loss = 14.59
+        loss_hol_ep = np.clip(
+            ian_loss*(np.log(rp)/np.log(100))**2.5, 0.1, 25)
+        loss_cgan_ep = loss_hol_ep * 1.013
+
+        fig_ep = go.Figure()
+        fig_ep.add_trace(go.Scatter(
+            x=loss_hol_ep, y=prob, name="Holland",
+            line=dict(color="#3B8BD4", width=2.5)
+        ))
+        fig_ep.add_trace(go.Scatter(
+            x=loss_cgan_ep, y=prob, name="cGAN",
+            line=dict(color="#E8593C", width=2.5)
+        ))
+        fig_ep.add_vline(x=14.59, line_dash="dash", line_color="#3B8BD4",
+                         annotation_text="Ian (Holland)")
+        fig_ep.add_vline(x=14.78, line_dash="dash", line_color="#E8593C",
+                         annotation_text="Ian (cGAN)")
+        fig_ep.update_layout(
+            title="Exceedance Probability Curve — Lee County",
+            xaxis_title="Loss ($B)",
+            yaxis_title="Annual Exceedance Probability (%)",
+            yaxis_type="log", height=380
+        )
+        st.plotly_chart(fig_ep, use_container_width=True)
+
+        with st.expander("View EP curve data table"):
+            st.dataframe(pd.DataFrame({
+                "Return Period (yrs)": rp,
+                "Annual Prob (%)":     (1/rp*100).round(2),
+                "Holland Loss ($B)":   loss_hol_ep.round(2),
+                "cGAN Loss ($B)":      loss_cgan_ep.round(2),
+            }), hide_index=True, use_container_width=True)
+
+        st.divider()
+
+        # Controls
+        st.subheader("⚙️ Structure Parameters")
+        loss_model = st.radio(
+            "Loss basis:", ["Holland ($14.59B)", "cGAN ($14.78B)"],
+            horizontal=True
+        )
+        base_loss      = 14.59 if "Holland" in loss_model else 14.78
+        aal            = base_loss * 0.01
+        loaded_premium = aal * 1.35
+
+        st.markdown(
+            f"**Loss:** ${base_loss:.2f}B  |  "
+            f"**AAL:** ${aal*1000:.1f}M  |  "
+            f"**Loaded premium:** ${loaded_premium*1000:.1f}M/yr"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**XOL Parameters**")
+            retention    = st.slider("Retention ($B)",
+                                     0.1, 3.0, 0.5, 0.1)
+            n_layers     = st.slider("Number of layers", 1, 4, 3, 1)
+            layer_width  = st.slider("Layer width ($B)",
+                                     0.5, 5.0, 2.0, 0.5)
+        with col2:
+            st.markdown("**Quota Share Parameters**")
+            cession_pct  = st.slider("Cession (%)", 10, 90, 70, 5)
+            commission   = st.slider("Commission (%)", 15, 40, 25, 1)
+
+        st.divider()
+
+        # XOL Calcs
+        st.subheader("XOL Layer Results")
+        xol_rows       = []
+        insurer_retain = min(base_loss, retention)
+        for i in range(n_layers):
+            lb   = retention + i*layer_width
+            lt   = retention + (i+1)*layer_width
+            loss = max(0, min(base_loss, lt) - max(retention, lb))
+            rol  = [0.25, 0.15, 0.08, 0.04][min(i,3)]
+            xol_rows.append({
+                "Layer":               f"Layer {i+1}",
+                "Attachment ($B)":     round(lb, 1),
+                "Limit ($B)":          round(layer_width, 1),
+                "Exhaustion ($B)":     round(lt, 1),
+                "Loss to Layer ($B)":  round(loss, 3),
+                "ROL (%)":             f"{rol*100:.0f}%",
+                "Annual Premium ($M)": round(layer_width*rol*1000, 0),
+                "% of Total Loss":     f"{loss/base_loss*100:.1f}%"
+            })
+
+        xol_df         = pd.DataFrame(xol_rows)
+        total_xol_loss = sum(r["Loss to Layer ($B)"] for r in xol_rows)
+        total_xol_prem = sum(r["Annual Premium ($M)"] for r in xol_rows)
+        cat_loss       = max(0, base_loss - retention - n_layers*layer_width)
+
+        c1,c2,c3,c4 = st.columns(4)
+        c1.metric("Insurer retains",
+                  f"${insurer_retain:.2f}B",
+                  f"{insurer_retain/base_loss*100:.1f}%")
+        c2.metric("Reinsurer pays",
+                  f"${total_xol_loss:.2f}B",
+                  f"{total_xol_loss/base_loss*100:.1f}%")
+        c3.metric("Above all layers",
+                  f"${cat_loss:.2f}B" if cat_loss>0 else "$0.00B",
+                  "Uninsured" if cat_loss>0 else "Fully covered ✓")
+        c4.metric("XOL premium", f"${total_xol_prem:.0f}M/yr")
+
+        st.dataframe(xol_df, hide_index=True, use_container_width=True)
+
+        xol_chart = [{"Segment":"Retention (Insurer)","Loss":insurer_retain,"Party":"Insurer"}]
+        for r in xol_rows:
+            xol_chart.append({"Segment":r["Layer"],"Loss":r["Loss to Layer ($B)"],"Party":"Reinsurer"})
+        if cat_loss > 0:
+            xol_chart.append({"Segment":"Cat (above layers)","Loss":cat_loss,"Party":"Uninsured"})
+
+        fig_xol = px.bar(
+            pd.DataFrame(xol_chart), x="Segment", y="Loss",
+            color="Party",
+            color_discrete_map={"Insurer":"#E8593C","Reinsurer":"#3B8BD4","Uninsured":"#888"},
+            title=f"XOL — Retention ${retention:.1f}B · {n_layers} layers × ${layer_width:.1f}B",
+            labels={"Loss":"Loss ($B)"},
+            text="Loss"
+        )
+        fig_xol.update_traces(texttemplate="%{text:.2f}B", textposition="outside")
+        fig_xol.update_layout(height=380)
+        st.plotly_chart(fig_xol, use_container_width=True)
+
+        st.divider()
+
+        # Quota Share Calcs
+        st.subheader("Quota Share Results")
+        cession       = cession_pct/100
+        qs_re_loss    = base_loss * cession
+        qs_ins_loss   = base_loss * (1-cession)
+        qs_re_prem    = loaded_premium * cession
+        qs_commission_amt = qs_re_prem * (commission/100)
+        qs_ins_net    = loaded_premium*(1-cession) + qs_commission_amt
+
+        c1,c2,c3,c4 = st.columns(4)
+        c1.metric("Insurer retains",
+                  f"${qs_ins_loss:.2f}B",
+                  f"{100-cession_pct}%")
+        c2.metric("Reinsurer pays",
+                  f"${qs_re_loss:.2f}B",
+                  f"{cession_pct}%")
+        c3.metric("Ceded premium",
+                  f"${qs_re_prem*1000:.0f}M/yr")
+        c4.metric("Commission back",
+                  f"${qs_commission_amt*1000:.0f}M/yr",
+                  f"{commission}% of ceded")
+
+        fig_qs = go.Figure()
+        fig_qs.add_trace(go.Bar(
+            name="Insurer", x=["Loss ($B)","Net Premium ($M)"],
+            y=[qs_ins_loss, qs_ins_net*1000],
+            marker_color="#E8593C",
+            text=[f"${qs_ins_loss:.2f}B", f"${qs_ins_net*1000:.0f}M"],
+            textposition="outside"
+        ))
+        fig_qs.add_trace(go.Bar(
+            name="Reinsurer (net)", x=["Loss ($B)","Net Premium ($M)"],
+            y=[qs_re_loss, (qs_re_prem-qs_commission_amt)*1000],
+            marker_color="#3B8BD4",
+            text=[f"${qs_re_loss:.2f}B",
+                  f"${(qs_re_prem-qs_commission_amt)*1000:.0f}M"],
+            textposition="outside"
+        ))
+        fig_qs.update_layout(
+            barmode="group",
+            title=f"Quota Share — {cession_pct}% cession · {commission}% commission",
+            height=380
+        )
+        st.plotly_chart(fig_qs, use_container_width=True)
+
+        st.divider()
+
+        # Comparison
+        st.subheader("⚖️ XOL vs Quota Share — Recommendation")
+        comp_df = pd.DataFrame({
+            "Metric": [
+                "Insurer retained loss",
+                "Reinsurer loss",
+                "Annual reinsurance cost",
+                "% loss transferred",
+                "Structure type",
+                "Best for"
+            ],
+            "XOL": [
+                f"${insurer_retain:.2f}B",
+                f"${total_xol_loss:.2f}B",
+                f"${total_xol_prem:.0f}M/yr",
+                f"{total_xol_loss/base_loss*100:.1f}%",
+                "Non-proportional",
+                "Cat tail protection"
+            ],
+            "Quota Share": [
+                f"${qs_ins_loss:.2f}B",
+                f"${qs_re_loss:.2f}B",
+                f"${(qs_re_prem-qs_commission_amt)*1000:.0f}M net/yr",
+                f"{cession_pct}%",
+                "Proportional",
+                "Surplus relief + working losses"
+            ]
+        })
+        st.dataframe(comp_df, hide_index=True, use_container_width=True)
+
+        # Recommendation
+        if insurer_retain <= qs_ins_loss:
+            st.success(f"""
+**✓ Recommendation: XOL is better for this scenario**
+
+XOL retains ${insurer_retain:.2f}B vs ${qs_ins_loss:.2f}B under Quota Share.
+At ${total_xol_prem:.0f}M/yr vs ${(qs_re_prem-qs_commission_amt)*1000:.0f}M net/yr for QS,
+XOL provides **superior cat tail protection at lower annual cost.**
+
+For a direct Cat 4 landfall like Ian (1-in-100 yr event):
+- XOL only triggers above the ${retention:.1f}B retention
+- You pay premium only for layers likely to be hit
+- Quota Share would cede {cession_pct}% of premium every year regardless of losses
+- **Combined structure:** QS for working layer (frequency) + XOL for cat (severity)
+            """)
+        else:
+            st.info(f"""
+**ℹ️ Recommendation: Quota Share provides more protection at current settings**
+
+Consider increasing XOL layers or reducing retention to improve XOL efficiency.
+Current settings retain ${insurer_retain:.2f}B under XOL vs ${qs_ins_loss:.2f}B under QS.
+            """)
+
+        st.markdown("""
+**Industry context for Lee County Cat exposure:**
+- Florida insurers typically use **XOL towers** of $500M xs $500M per occurrence
+- Quota Share is used primarily for **surplus relief** by smaller carriers
+- Ian 2022 exhausted most Florida domestic insurer cat programs
+- Post-Ian, ROL rates increased 30–50% for Florida cat XOL layers
+        """)
+
 # ══════════════════════════════════════════════════════════
 # PAGE 6 — MODEL TRAINING
 # ══════════════════════════════════════════════════════════
