@@ -811,7 +811,11 @@ elif page == "💰 Loss & Reinsurance":
                 "Exhaustion ($B)":     round(lt, 1),
                 "Loss to Layer ($B)":  round(loss, 3),
                 "ROL (%)":             f"{rol*100:.0f}%",
-                "Annual Premium ($M)": round(layer_width*rol*1000, 0),
+                "Annual Premium ($M)": round(
+                    layer_width * rol *
+                    (1 + 0.5*(loss/layer_width if layer_width>0 else 0))
+                    * (base_loss/14.59)  # scales with Holland vs cGAN
+                    * 1000, 1),
                 "% of Total Loss":     f"{loss/base_loss*100:.1f}%"
             })
 
